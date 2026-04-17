@@ -1,0 +1,28 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-gradient-from: #f9fafb;
+  --bg-gradient-to: #e5e7eb;
+  --card-bg: #ffffff;
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+  --border-color: #e5e7eb;
+}
+
+.dark {
+  --bg-gradient-from: #0f172a;
+  --bg-gradient-to: #020617;
+  --card-bg: #1e293b;
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --border-color: #334155;
+}
+
+body {
+  min-height: 100vh;
+  background: gradient-to-br;
+  background: linear-gradient(to bottom right, var(--bg-gradient-from), var(--bg-gradient-to));
+}

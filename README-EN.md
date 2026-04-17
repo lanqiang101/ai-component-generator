@@ -2,7 +2,7 @@
 
 AI-powered frontend component generator. Configure your component requirements via a form, AI generates code for your chosen framework/language, with real-time preview and editing.
 
-[中文版](./README_zh.md)
+[中文版](./README.md)
 
 ## ✨ Features
 
