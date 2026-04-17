@@ -4,9 +4,7 @@ import { Button } from '../../components/ui/Button';
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from '@radix-ui/react-dialog';
 import { Input } from '../../components/ui/Input';
 import { Label } from '../../components/ui/Label';
@@ -40,11 +38,11 @@ export const ModelDialog: React.FC<ModelDialogProps> = ({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px] bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-6">
-        <DialogHeader>
+        <div className="mb-4">
           <DialogTitle className="text-xl font-semibold text-gray-900 dark:text-white">
             {isEditing ? "编辑模型" : "添加新模型"}
           </DialogTitle>
-        </DialogHeader>
+        </div>
 
         <div className="space-y-4 py-4">
           <div className="space-y-2">
@@ -165,14 +163,14 @@ export const ModelDialog: React.FC<ModelDialogProps> = ({
           </div>
         </div>
 
-        <DialogFooter>
+        <div className="flex justify-end gap-2 mt-6">
           <Button variant="secondary" onClick={() => onOpenChange(false)}>
             取消
           </Button>
           <Button variant="primary" onClick={onSave}>
             {isEditing ? "保存修改" : "添加模型"}
           </Button>
-        </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );
