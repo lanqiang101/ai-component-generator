@@ -42,7 +42,16 @@ export interface ComponentGenerationParams {
   extraRequirements: string;
 }
 
-export type PreviewResolution = 'mobile' | 'tablet' | 'laptop' | 'desktop' | 'full';
+export type PreviewResolution = 
+  | 'full'
+  | 'iphone-se' | 'iphone-xr' | 'iphone-12-pro' | 'iphone-14-pro-max'
+  | 'pixel-7' | 'pixel-7-pro'
+  | 'galaxy-s8' | 'galaxy-s20-ultra' | 'galaxy-z-fold5' | 'galaxy-a51'
+  | 'ipad-mini' | 'ipad-air' | 'ipad-pro'
+  | 'surface-duo' | 'surface-pro7'
+  | 'zenbook-fold'
+  | 'nest-hub' | 'nest-hub-max'
+  | 'laptop' | 'desktop';
 
 export interface ResolutionPreset {
   key: PreviewResolution;
@@ -94,4 +103,9 @@ export interface AppState {
   generation: GenerationState;
   setGeneration: (state: Partial<GenerationState>) => void;
   generateComponent: () => Promise<boolean>;
+  
+  // Description expansion
+  isExpandingDescription: boolean;
+  setIsExpandingDescription: (isExpanding: boolean) => void;
+  expandDescription: () => Promise<boolean>;
 }

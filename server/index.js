@@ -229,6 +229,60 @@ async function callAI(model, prompt) {
   throw new Error('无法解析 AI 响应格式');
 }
 
+// ===== AI 扩写组件描述 API =====
+app.post('/api/expand-description', async (req, res) => {
+  try {
+    const { model, description, componentName } = req.body;
+    
+    if (!description) {
+      return res.status(400).json({ success: false, error: '缺少描述内容' });
+    }
+
+    if (!model) {
+      return res.status(400).json({ success: false, error: '必须提供完整模型配置' });
+    }
+
+    // 构建扩写提示词
+    const prompt = buildExpandPrompt(description, componentName);
+
+    // 调用 AI API
+    const expandedDescription = await callAI(model, prompt);
+    
+    res.json({ 
+      success: true, 
+      data: {
+        expandedDescription: expandedDescription,
+      } 
+    });
+  } catch (err) {
+    console.error('扩写失败:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+function buildExpandPrompt(description, componentName) {
+  return `你是一个专业的前端产品需求分析师。请根据用户提供的组件简要描述，进行详细扩写。
+
+原始组件名称：${componentName || '未指定'}
+原始描述：${description}
+
+请将这个描述扩写为更详细、更专业的产品需求描述，包括：
+1. 组件的核心功能和用途
+2. 用户交互方式和行为
+3. 视觉呈现和布局要求
+4. 数据展示和处理方式
+5. 边界情况和错误处理
+
+要求：
+- 保持简洁明了，不要过于冗长
+- 使用产品需求的语言风格
+- 突出关键功能和特性
+- 控制在 200-300 字以内
+- 直接输出扩写后的描述，不要有其他解释
+
+扩写后的描述：`;
+}
+
 // 启动服务器
 app.listen(PORT, () => {
   console.log(`AI 组件生成器后端服务运行在 http://localhost:${PORT}`);

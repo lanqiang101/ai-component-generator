@@ -104,6 +104,10 @@ export const useStore = create<AppState>((set, get) => ({
     }));
   },
 
+  // Description expansion state
+  isExpandingDescription: false,
+  setIsExpandingDescription: (isExpanding: boolean) => set({ isExpandingDescription: isExpanding }),
+
   // Generate component
   generateComponent: async () => {
     const { systemConfig, params, models, setGeneration, setCurrentCode } = get();
@@ -143,6 +147,64 @@ export const useStore = create<AppState>((set, get) => ({
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '生成失败';
       setGeneration({ isGenerating: false, error: errorMessage });
+      return false;
+    }
+  },
+
+  // Expand description with AI
+  expandDescription: async () => {
+    const { systemConfig, params, models, setParams, setIsExpandingDescription, setGeneration } = get();
+    
+    if (!systemConfig?.componentGenerationModelId) {
+      setGeneration({
+        isGenerating: false,
+        error: '请先在模型配置中选择生成组件使用的AI模型',
+      });
+      return false;
+    }
+
+    if (!params.description || params.description.trim().length === 0) {
+      setGeneration({
+        isGenerating: false,
+        error: '请先输入组件描述',
+      });
+      return false;
+    }
+
+    try {
+      setIsExpandingDescription(true);
+      setGeneration({ error: null });
+      
+      // 找到选中的模型完整信息
+      const model = models.find(m => m.id === systemConfig.componentGenerationModelId);
+      if (!model) {
+        throw new Error('选中的模型不存在，请重新选择');
+      }
+      
+      // Call backend API for description expansion
+      const response = await fetch('/api/expand-description', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          model, 
+          description: params.description,
+          componentName: params.componentName 
+        }),
+      });
+      
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      
+      // Update description with expanded text
+      setParams({ description: result.data.expandedDescription });
+      setIsExpandingDescription(false);
+      return true;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : '扩写失败';
+      setGeneration({ isGenerating: false, error: errorMessage });
+      setIsExpandingDescription(false);
       return false;
     }
   },

@@ -118,103 +118,121 @@ export const ModelManagementPage: React.FC = () => {
       {/* 顶部导航 */}
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl">
-            <Settings size={24} className="text-white" />
+          <div className="relative">
+            <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl opacity-75 blur"></div>
+            <div className="relative p-2 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl">
+              <Settings size={24} className="text-white" />
+            </div>
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100">
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
               模型管理
             </h1>
-            <p className="text-sm text-gray-500">管理所有可用的 AI 模型（存储在 localStorage）</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">管理所有可用的 AI 模型</p>
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="primary" onClick={handleAdd}>
-            <Plus size={16} className="mr-1" />
-            添加模型
+          {/* 添加模型按钮 */}
+          <Button 
+            variant="primary" 
+            onClick={handleAdd}
+            className="gap-1.5 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700 text-sm"
+          >
+            <Plus size={14} className="mr-1" />
+            <span>添加模型</span>
           </Button>
-          <Button variant="secondary" onClick={() => navigate("/config")}>
-            <ChevronLeft size={16} />
-            返回配置
+          
+          {/* 返回配置按钮 */}
+          <Button 
+            variant="secondary" 
+            onClick={() => navigate("/config")}
+            className="gap-1.5 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700 text-sm"
+          >
+            <ChevronLeft size={14} />
+            <span>返回配置</span>
           </Button>
         </div>
       </div>
 
       {!loading && models.length === 0 && (
-        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-6">
-          <p className="text-yellow-800 dark:text-yellow-200">
-            当前没有任何模型，请点击"添加模型"按钮添加第一个模型。
-          </p>
+        <div className="relative group">
+          <div className="absolute -inset-0.5 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-xl opacity-20 blur"></div>
+          <div className="relative bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-6">
+            <p className="text-yellow-800 dark:text-yellow-200 text-center">
+              🤖 当前没有任何模型，请点击右上角的"添加模型"按钮添加第一个模型。
+            </p>
+          </div>
         </div>
       )}
 
       {/* 模型列表 */}
       <div className="space-y-4">
         {models.map((model) => (
-          <Card key={model.id} className="p-6">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-2">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                    {model.name}
-                  </h3>
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                    model.enabled
-                      ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                      : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
-                  }`}>
-                    {model.enabled ? '启用' : '禁用'}
-                  </span>
-                  <span className="px-2 py-0.5 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 rounded-full text-xs font-medium">
-                    {formatMode(model.mode)}
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="text-gray-500 dark:text-gray-400">模型标识：</span>
-                    <span className="font-medium text-gray-900 dark:text-white">{model.modelName}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500 dark:text-gray-400">温度：</span>
-                    <span className="font-medium text-gray-900 dark:text-white">{model.temperature}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500 dark:text-gray-400">最大 Tokens：</span>
-                    <span className="font-medium text-gray-900 dark:text-white">{model.maxTokens}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500 dark:text-gray-400">API 地址：</span>
-                    <span className="font-medium text-gray-900 dark:text-white truncate block max-w-[300px]">
-                      {model.baseUrl}
+          <div key={model.id} className="group relative">
+            <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl opacity-0 group-hover:opacity-20 transition duration-300 blur"></div>
+            <Card className="relative p-6 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-700 transition-all">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-3">
+                    <h3 className="text-lg font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                      {model.name}
+                    </h3>
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                      model.enabled
+                        ? 'bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 dark:from-green-900/30 dark:to-emerald-900/30 dark:text-green-300 border border-green-200 dark:border-green-800'
+                        : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 border border-gray-200 dark:border-gray-600'
+                    }`}>
+                      {model.enabled ? '✓ 启用' : '✗ 禁用'}
+                    </span>
+                    <span className="px-3 py-1 bg-gradient-to-r from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 text-blue-800 dark:text-blue-300 rounded-full text-xs font-medium border border-blue-200 dark:border-blue-800">
+                      {formatMode(model.mode)}
                     </span>
                   </div>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-500 dark:text-gray-400">模型标识：</span>
+                      <span className="font-medium text-gray-900 dark:text-white font-mono bg-gray-100 dark:bg-slate-700 px-2 py-0.5 rounded">{model.modelName}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-500 dark:text-gray-400">温度：</span>
+                      <span className="font-medium text-gray-900 dark:text-white">{model.temperature}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-500 dark:text-gray-400">最大 Tokens：</span>
+                      <span className="font-medium text-gray-900 dark:text-white">{model.maxTokens}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-500 dark:text-gray-400">API 地址：</span>
+                      <span className="font-medium text-gray-900 dark:text-white truncate block max-w-[300px] font-mono text-xs">{model.baseUrl}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 ml-4">
+                  <button
+                    onClick={() => handleToggleEnabled(model)}
+                    className="relative p-2.5 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all hover:scale-110"
+                    title={model.enabled ? '禁用模型' : '启用模型'}
+                  >
+                    {model.enabled ? <PowerOff size={18} /> : <Power size={18} />}
+                  </button>
+                  <button
+                    onClick={() => handleEdit(model)}
+                    className="relative p-2.5 text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-all hover:scale-110"
+                    title="编辑"
+                  >
+                    <Edit size={18} />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(model.id)}
+                    className="relative p-2.5 text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all hover:scale-110"
+                    title="删除"
+                  >
+                    <Trash2 size={18} />
+                  </button>
                 </div>
               </div>
-              <div className="flex items-center gap-2 ml-4">
-                <button
-                  onClick={() => handleToggleEnabled(model)}
-                  className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
-                  title={model.enabled ? '禁用模型' : '启用模型'}
-                >
-                  {model.enabled ? <PowerOff size={18} /> : <Power size={18} />}
-                </button>
-                <button
-                  onClick={() => handleEdit(model)}
-                  className="p-2 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
-                  title="编辑"
-                >
-                  <Edit size={18} />
-                </button>
-                <button
-                  onClick={() => handleDelete(model.id)}
-                  className="p-2 text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
-                  title="删除"
-                >
-                  <Trash2 size={18} />
-                </button>
-              </div>
-            </div>
-          </Card>
+            </Card>
+          </div>
         ))}
       </div>
 

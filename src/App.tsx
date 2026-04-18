@@ -1,6 +1,6 @@
 
 import { useEffect } from 'react';
-import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider, useLocation } from 'react-router-dom';
 import { HomePage } from './pages/HomePage';
 import { ConfigPage } from './pages/ConfigPage';
 import { ModelManagementPage } from './pages/ModelManagementPage';
@@ -10,6 +10,7 @@ import { Tooltip } from './components/ui/Tooltip';
 
 function Layout() {
   const { darkMode, toggleDarkMode, loadModels, loadSystemConfig } = useStore();
+  const location = useLocation();
 
   // 加载数据
   useEffect(() => {
@@ -54,42 +55,54 @@ function Layout() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-slate-100 dark:from-slate-900 dark:via-slate-900 dark:to-slate-950 transition-colors duration-500">
-      <header className="sticky top-0 z-40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-gray-200 dark:border-slate-700/50">
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-900 transition-colors duration-300">
+      <header className="sticky top-0 z-40 bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800">
         <div className="max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/25">
-                  <PenTool size={20} className="text-white" />
+                <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 shadow-sm">
+                  <PenTool size={18} className="text-white" />
                 </div>
                 <div>
-                  <h1 className="text-lg font-bold text-gray-900 dark:text-white">
+                  <h1 className="text-base font-semibold text-gray-900 dark:text-white">
                     AI 组件生成器
                   </h1>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 -mt-0.5">
-                    一键生成前端组件
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    智能生成前端组件
                   </p>
                 </div>
               </div>
             </div>
 
-            <nav className="hidden md:flex items-center gap-2">
+            <nav className="hidden md:flex items-center gap-1">
               <a
                 href="/"
-                className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                className={`px-3 py-2 text-sm font-medium rounded-md transition-all ${
+                  location.pathname === '/'
+                    ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800'
+                }`}
               >
                 生成器
               </a>
               <a
                 href="/config"
-                className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                className={`px-3 py-2 text-sm font-medium rounded-md transition-all ${
+                  location.pathname === '/config'
+                    ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800'
+                }`}
               >
                 模型配置
               </a>
               <a
                 href="/models"
-                className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                className={`px-3 py-2 text-sm font-medium rounded-md transition-all ${
+                  location.pathname === '/models'
+                    ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800'
+                }`}
               >
                 模型管理
               </a>
@@ -99,7 +112,7 @@ function Layout() {
               <Tooltip content={getDarkModeTooltip()}>
                 <button
                   onClick={toggleDarkMode}
-                  className="p-2.5 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 rounded-xl transition-all"
+                  className="p-2 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 rounded-md transition-all"
                 >
                   {getDarkModeIcon()}
                 </button>
@@ -113,13 +126,10 @@ function Layout() {
         <Outlet />
       </main>
 
-      <footer className="py-6 text-center text-gray-400 dark:text-gray-500 text-sm border-t border-gray-200 dark:border-slate-800/50 max-w-[1800px] mx-auto">
+      <footer className="py-4 text-center text-gray-400 dark:text-gray-500 text-xs border-t border-gray-200 dark:border-slate-800 max-w-[1800px] mx-auto">
         <div className="flex items-center justify-center gap-2">
-          <span>纯前端可视化</span>
-          <span className="w-1 h-1 bg-gray-300 dark:bg-gray-600 rounded-full" />
-          <span>支持本地/在线API模型</span>
-          <span className="w-1 h-1 bg-gray-300 dark:bg-gray-600 rounded-full" />
-          <span>配置自动保存</span>
+          <PenTool size={14} />
+          <span>AI Component Generator</span>
         </div>
       </footer>
     </div>

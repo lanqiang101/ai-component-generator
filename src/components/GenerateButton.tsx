@@ -1,33 +1,31 @@
 
 import React from 'react';
 import { Zap, Loader2 } from 'lucide-react';
-import { Button } from './ui/Button';
 import { useStore } from '../store/useStore';
 
 export const GenerateButton: React.FC = () => {
   const { generation, generateComponent } = useStore();
 
   return (
-    <Button
-      variant="primary"
+    <button
       onClick={generateComponent}
       disabled={generation.isGenerating}
-      className="w-full py-3 text-base flex items-center justify-center gap-2"
+      className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg overflow-hidden transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
     >
       {generation.isGenerating ? (
         <>
-          <Loader2 size={20} className="animate-spin" />
-          生成中...
+          <Loader2 size={18} className="animate-spin" />
+          <span>生成中...</span>
         </>
       ) : (
         <>
-          <Zap size={20} />
-          生成组件
+          <Zap size={18} />
+          <span>生成组件</span>
+          <span className="text-xs opacity-70 ml-1">
+            (⌘/Ctrl + Enter)
+          </span>
         </>
       )}
-      <span className="text-xs opacity-70 ml-2">
-        (⌘/Ctrl + Enter)
-      </span>
-    </Button>
+    </button>
   );
 };

@@ -1,12 +1,11 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import Editor from 'react-simple-code-editor';
 import Prism from 'prismjs';
 import 'prismjs/components/prism-jsx.min';
 import 'prismjs/components/prism-typescript.min';
 import 'prismjs/components/prism-css.min';
 import 'prismjs/components/prism-markup.min';
-import { Copy, Download } from 'lucide-react';
+import { Copy, Download, Check } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -30,6 +29,7 @@ function detectLanguage(code: string): string {
 
 export const CodeEditorPanel: React.FC = () => {
   const { currentCode, setCurrentCode } = useStore();
+  const [copied, setCopied] = useState(false);
 
   const highlight = (code: string) => {
     const lang = detectLanguage(code);
@@ -39,7 +39,8 @@ export const CodeEditorPanel: React.FC = () => {
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(currentCode);
-      alert('已复制到剪贴板');
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error('复制失败:', err);
       alert('复制失败，请手动复制');
@@ -66,166 +67,173 @@ export const CodeEditorPanel: React.FC = () => {
   };
 
   return (
-    <div className="w-full h-full flex flex-col">
-      {/* Toolbar */}
-      <div className="px-4 py-2 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/50 flex items-center justify-end gap-2">
-        <button
-          onClick={handleCopy}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-600 transition-colors text-gray-700 dark:text-gray-200"
-        >
-          <Copy size={14} />
-          复制代码
-        </button>
-        <button
-          onClick={handleDownload}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
-        >
-          <Download size={14} />
-          下载文件
-        </button>
+    <div className="w-full h-full flex flex-col bg-gray-900 rounded-lg overflow-hidden border border-gray-200 dark:border-slate-700">
+      {/* 工具栏 */}
+      <div className="flex items-center justify-between px-4 py-2.5 bg-gray-800 border-b border-gray-700">
+        {/* 左侧：文件名 */}
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-400 font-mono">
+            component.{detectLanguage(currentCode) === 'typescript' ? 'tsx' : detectLanguage(currentCode) === 'jsx' ? 'jsx' : detectLanguage(currentCode)}
+          </span>
+        </div>
+
+        {/* 右侧：操作按钮 */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleCopy}
+            disabled={copied}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-200",
+              copied
+                ? "bg-green-600/20 text-green-400 border border-green-600/50"
+                : "bg-blue-600 hover:bg-blue-700 text-white border border-transparent"
+            )}
+          >
+            {copied ? (
+              <>
+                <Check size={14} className="animate-bounce" />
+                <span>已复制</span>
+              </>
+            ) : (
+              <>
+                <Copy size={14} />
+                <span>复制代码</span>
+              </>
+            )}
+          </button>
+          <button
+            onClick={handleDownload}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-md border border-transparent transition-all duration-200"
+          >
+            <Download size={14} />
+            <span>下载文件</span>
+          </button>
+        </div>
       </div>
 
-      {/* Editor */}
-      <div className="flex-1 overflow-auto bg-white dark:bg-slate-900">
-        <Editor
-          value={currentCode}
-          onValueChange={setCurrentCode}
-          highlight={highlight}
-          padding={16}
-          textareaId="code-editor"
-          className="min-h-full font-mono text-sm"
-          style={{
-            fontFamily: '"Fira code", "Fira Mono", monospace',
-            minHeight: '100%',
-          }}
-          placeholder="生成的组件代码会显示在这里，您可以直接编辑..."
-        />
-
-        <style>{`
-          /* Prism.js theme */
-          .token.comment,
-          .token.prolog,
-          .token.doctype,
-          .token.cdata {
-            color: #6b7280;
-            font-style: italic;
-          }
-
-          .token.namespace {
-            opacity: .7;
-          }
-
-          .token.string {
-            color: #10b981;
-          }
-
-          .token.attr-value {
-            color: #10b981;
-          }
-
-          .token.punctuation {
-            color: #6b7280;
-          }
-
-          .token.operator {
-            color: #6b7280;
-            background: none;
-          }
-
-          .token.keyword {
-            color: #8b5cf6;
-          }
-
-          .token.boolean {
-            color: #f59e0b;
-          }
-
-          .token.number {
-            color: #f59e0b;
-          }
-
-          .token.tag {
-            color: #ef4444;
-          }
-
-          .token.attr-name {
-            color: #3b82f6;
-          }
-
-          .token.function {
-            color: #3b82f6;
-          }
-
-          .token.class-name {
-            color: #06b6d4;
-          }
-
-          .token.property {
-            color: #06b6d4;
-          }
-
-          .token.comment {
-            background: none;
-          }
-
-          /* Dark mode */
-          .dark .token.comment,
-          .dark .token.prolog,
-          .dark .token.doctype,
-          .dark .token.cdata {
-            color: #94a3b8;
-          }
-
-          .dark .token.string {
-            color: #34d399;
-          }
-
-          .dark .token.attr-value {
-            color: #34d399;
-          }
-
-          .dark .token.punctuation {
-            color: #94a3b8;
-          }
-
-          .dark .token.keyword {
-            color: #c4b5fd;
-          }
-
-          .dark .token.boolean {
-            color: #fbbf24;
-          }
-
-          .dark .token.number {
-            color: #fbbf24;
-          }
-
-          .dark .token.tag {
-            color: #f87171;
-          }
-
-          .dark .token.attr-name {
-            color: #60a5fa;
-          }
-
-          .dark .token.function {
-            color: #60a5fa;
-          }
-
-          .dark .token.class-name {
-            color: #22d3ee;
-          }
-
-          .dark .token.property {
-            color: #22d3ee;
-          }
-
-          /* Editor container */
-          #code-editor {
-            outline: none;
-          }
-        `}</style>
+      {/* 代码编辑器区域 */}
+      <div className="flex-1 overflow-auto bg-gray-900 relative">
+        {/* 编辑器内容 */}
+        <div className="pl-12">
+          <Editor
+            value={currentCode}
+            onValueChange={setCurrentCode}
+            highlight={highlight}
+            padding={16}
+            textareaId="code-editor"
+            className="min-h-full font-mono text-sm"
+            style={{
+              fontFamily: '"Cascadia Code", "Fira Code", "Consolas", "Monaco", monospace',
+              minHeight: '100%',
+              fontSize: '14px',
+              lineHeight: '1.6',
+            }}
+            placeholder="// 生成的组件代码会显示在这里，您可以直接编辑..."
+          />
+        </div>
       </div>
+
+      <style>{`
+        /* 语法高亮 - 柔和配色 */
+        .token.comment,
+        .token.prolog,
+        .token.doctype,
+        .token.cdata {
+          color: #6a9955;
+          font-style: italic;
+        }
+
+        .token.namespace {
+          opacity: .7;
+        }
+
+        .token.string {
+          color: #ce9178;
+        }
+
+        .token.attr-value {
+          color: #ce9178;
+        }
+
+        .token.punctuation {
+          color: #d4d4d4;
+        }
+
+        .token.operator {
+          color: #d4d4d4;
+          background: none;
+        }
+
+        .token.keyword {
+          color: #569cd6;
+        }
+
+        .token.boolean {
+          color: #569cd6;
+        }
+
+        .token.number {
+          color: #b5cea8;
+        }
+
+        .token.tag {
+          color: #569cd6;
+        }
+
+        .token.attr-name {
+          color: #9cdcfe;
+        }
+
+        .token.function {
+          color: #dcdcaa;
+        }
+
+        .token.class-name {
+          color: #4ec9b0;
+        }
+
+        .token.property {
+          color: #9cdcfe;
+        }
+
+        .token.regex {
+          color: #d16969;
+        }
+
+        .token.important {
+          color: #569cd6;
+        }
+
+        /* 编辑器样式优化 */
+        #code-editor {
+          outline: none;
+          caret-color: #d4d4d4;
+        }
+
+        #code-editor::placeholder {
+          color: #6a9955;
+          font-style: italic;
+        }
+
+        /* 滚动条样式 - 简约风格 */
+        .overflow-auto::-webkit-scrollbar {
+          width: 8px;
+          height: 8px;
+        }
+
+        .overflow-auto::-webkit-scrollbar-track {
+          background: #1e1e1e;
+        }
+
+        .overflow-auto::-webkit-scrollbar-thumb {
+          background: #424242;
+          border-radius: 4px;
+        }
+
+        .overflow-auto::-webkit-scrollbar-thumb:hover {
+          background: #4f4f4f;
+        }
+      `}</style>
     </div>
   );
 };

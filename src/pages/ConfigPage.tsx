@@ -62,11 +62,14 @@ export const ConfigPage: React.FC = () => {
       {/* 顶部导航 */}
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl">
-            <Settings size={24} className="text-white" />
+          <div className="relative">
+            <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl opacity-75 blur"></div>
+            <div className="relative p-2 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl">
+              <Settings size={24} className="text-white" />
+            </div>
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100">
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
               系统配置
             </h1>
             <p className="text-sm text-gray-500">
@@ -75,13 +78,24 @@ export const ConfigPage: React.FC = () => {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="secondary" onClick={() => navigate("/models")}>
-            <SettingsIcon size={16} className="mr-1" />
-            模型管理
+          {/* 模型管理按钮 */}
+          <Button 
+            variant="secondary" 
+            onClick={() => navigate("/models")} 
+            className="gap-1.5 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700 text-sm"
+          >
+            <SettingsIcon size={14} />
+            <span>模型管理</span>
           </Button>
-          <Button variant="secondary" onClick={() => navigate("/")}>
-            <ChevronLeft size={16} />
-            返回生成器
+          
+          {/* 返回生成器按钮 */}
+          <Button 
+            variant="secondary" 
+            onClick={() => navigate("/")} 
+            className="gap-1.5 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700 text-sm"
+          >
+            <ChevronLeft size={14} />
+            <span>返回生成器</span>
           </Button>
         </div>
       </div>
@@ -102,92 +116,98 @@ export const ConfigPage: React.FC = () => {
       )}
 
       {/* 配置区域 */}
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg border border-gray-200/50 dark:border-slate-700/50 overflow-hidden p-6">
-        <div className="space-y-6">
-          <div>
-            <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-1">
-              组件生成模型
-            </h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              选择用于生成前端组件的 AI 模型（仅显示已启用的模型）
-            </p>
-          </div>
+      <div className="relative group">
+        <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl opacity-20 group-hover:opacity-30 transition duration-300 blur"></div>
+        <div className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-lg border border-gray-200/50 dark:border-slate-700/50 overflow-hidden p-6">
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-1">
+                组件生成模型
+              </h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                选择用于生成前端组件的 AI 模型（仅显示已启用的模型）
+              </p>
+            </div>
 
-          <div className="space-y-3">
-            <Label>选择模型</Label>
-            <select
-              value={componentGenerationModelId != null ? componentGenerationModelId.toString() : ""}
-              onChange={(e) => setComponentGenerationModelId(e.target.value ? parseInt(e.target.value) : null)}
-              className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
-            >
-              <option value="">请选择一个模型</option>
-              {enabledModels.map((model) => (
-                <option key={model.id} value={model.id.toString()}>
-                  {model.name} ({model.modelName})
-                </option>
-              ))}
-            </select>
-          </div>
+            <div className="space-y-3">
+              <Label>选择模型</Label>
+              <select
+                value={componentGenerationModelId != null ? componentGenerationModelId.toString() : ""}
+                onChange={(e) => setComponentGenerationModelId(e.target.value ? parseInt(e.target.value) : null)}
+                className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-colors"
+              >
+                <option value="">请选择一个模型</option>
+                {enabledModels.map((model) => (
+                  <option key={model.id} value={model.id.toString()}>
+                    {model.name} ({model.modelName})
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          {getModelById(componentGenerationModelId) && (
-            <Card>
-              <CardContent className="pt-6 space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-500 dark:text-gray-400">
-                    模型名称
-                  </span>
-                  <span className="font-medium text-gray-900 dark:text-gray-100">
-                    {getModelById(componentGenerationModelId)?.name}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500 dark:text-gray-400">
-                    模型标识
-                  </span>
-                  <span className="font-medium text-gray-900 dark:text-gray-100">
-                    {getModelById(componentGenerationModelId)?.modelName}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500 dark:text-gray-400">
-                    API 地址
-                  </span>
-                  <span className="font-medium text-gray-900 dark:text-gray-100 truncate max-w-[200px]">
-                    {getModelById(componentGenerationModelId)?.baseUrl}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500 dark:text-gray-400">
-                    温度
-                  </span>
-                  <span className="font-medium text-gray-900 dark:text-gray-100">
-                    {getModelById(componentGenerationModelId)?.temperature}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500 dark:text-gray-400">
-                    最大 Tokens
-                  </span>
-                  <span className="font-medium text-gray-900 dark:text-gray-100">
-                    {getModelById(componentGenerationModelId)?.maxTokens}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+            {getModelById(componentGenerationModelId) && (
+              <Card>
+                <CardContent className="pt-6 space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500 dark:text-gray-400">
+                      模型名称
+                    </span>
+                    <span className="font-medium text-gray-900 dark:text-gray-100">
+                      {getModelById(componentGenerationModelId)?.name}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500 dark:text-gray-400">
+                      模型标识
+                    </span>
+                    <span className="font-medium text-gray-900 dark:text-gray-100">
+                      {getModelById(componentGenerationModelId)?.modelName}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500 dark:text-gray-400">
+                      API 地址
+                    </span>
+                    <span className="font-medium text-gray-900 dark:text-gray-100 truncate max-w-[200px]">
+                      {getModelById(componentGenerationModelId)?.baseUrl}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500 dark:text-gray-400">
+                      温度
+                    </span>
+                    <span className="font-medium text-gray-900 dark:text-gray-100">
+                      {getModelById(componentGenerationModelId)?.temperature}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500 dark:text-gray-400">
+                      最大 Tokens
+                    </span>
+                    <span className="font-medium text-gray-900 dark:text-gray-100">
+                      {getModelById(componentGenerationModelId)?.maxTokens}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </div>
       </div>
 
       {/* 保存按钮 */}
       <div className="mt-6 flex justify-end">
-        <Button
-          variant="primary"
-          onClick={saveConfig}
-          className="flex items-center gap-2 px-8"
-        >
-          {loading ? <Loader2 size={16} className="animate-spin" /> : null}
-          保存配置
-        </Button>
+        <div className="relative group">
+          <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl opacity-75 blur group-hover:opacity-100 transition duration-1000 animate-gradient-xy"></div>
+          <Button
+            variant="primary"
+            onClick={saveConfig}
+            className="relative flex items-center gap-2 px-8 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+          >
+            {loading ? <Loader2 size={16} className="animate-spin" /> : null}
+            保存配置
+          </Button>
+        </div>
       </div>
 
       {/* 使用提示 */}
