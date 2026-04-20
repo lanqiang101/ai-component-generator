@@ -8,7 +8,7 @@
  * 2. 创建 Worker（名称：ai-component-proxy）
  * 3. 将此代码粘贴到 Worker 编辑器中
  * 4. 在 Worker 设置中添加环境变量：
- *    - ARK_API_KEY: 你的火山方舟 API Key（使用 wrangler secret put ARK_API_KEY）
+ *    - API_KEY: 你的火山方舟 API Key（使用 wrangler secret put API_KEY）
  * 5. 保存并部署
  * 6. Worker URL: https://ai-component-proxy.xuyongqiang916.workers.dev
  */
@@ -37,12 +37,14 @@ export default {
 
       // 构建火山方舟 API 请求
       const ARK_API_URL = 'https://ark.cn-beijing.volces.com/api/coding/v3/chat/completions';
-      const API_KEY = env.ARK_API_KEY;
+      
+      // 从环境变量获取 API Key（支持 API_KEY 或 ARK_API_KEY）
+      const API_KEY = env.API_KEY || env.ARK_API_KEY;
 
       // 验证 API Key 是否存在
       if (!API_KEY) {
         return new Response(
-          JSON.stringify({ error: 'API key not configured' }),
+          JSON.stringify({ error: 'API key not configured. Please set API_KEY or ARK_API_KEY in Cloudflare Dashboard' }),
           {
             status: 500,
             headers: { 'Content-Type': 'application/json' },
