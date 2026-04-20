@@ -1,6 +1,4 @@
 import React, { useState, useMemo, useCallback } from "react";
-import { clsx } from "clsx";
-import { twMerge } from "tailwind-merge";
 import type { PreviewResolution } from "../types";
 import {
   resolutionPresets,
@@ -15,13 +13,8 @@ import {
   Smartphone,
   Tablet,
   Tv,
-  Laptop,
   AlertCircle,
 } from "lucide-react";
-
-function cn(...inputs: any[]) {
-  return twMerge(clsx(inputs));
-}
 
 // 简单的语法检查函数
 function validateCode(code: string): { valid: boolean; error?: string } {
@@ -95,7 +88,6 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
 }) => {
   const { setPreviewResolution } = useStore();
   const [error, setError] = useState<string | null>(null);
-  const [validationError, setValidationError] = useState<string | null>(null);
 
   const preset = resolutionPresets[resolution];
 
@@ -133,7 +125,6 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
     // 检测框架，生成适合的HTML包装
     const isReactCode =
       code.includes("React") || code.includes("jsx") || code.includes("tsx");
-    const isVueCode = code.includes("<template>") || code.includes(".vue");
     const isHtmlCode = code.includes("<!DOCTYPE") || code.includes("<html");
 
     if (isHtmlCode) {
@@ -414,11 +405,11 @@ ${code}
   // 获取分类标签
   const getCategoryLabel = (category: string) => {
     const labels: Record<string, string> = {
-      mobile: "手机设备",
-      tablet: "平板设备",
-      desktop: "桌面显示器",
-      laptop: "笔记本电脑",
-      tv: "电视屏幕",
+      standard: "标准",
+      phones: "手机设备",
+      tablets: "平板设备",
+      computers: "桌面显示器",
+      displays: "显示设备",
     };
     return labels[category] || category;
   };
@@ -506,20 +497,17 @@ ${code}
                   {resolutionListGrouped.map((group) => (
                     <Select.Group key={group.category}>
                       <Select.Label className="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center">
-                        {group.category === "mobile" && (
+                        {group.category === "phones" && (
                           <Smartphone className="w-4 h-4 mr-2" />
                         )}
-                        {group.category === "tablet" && (
+                        {group.category === "tablets" && (
                           <Tablet className="w-4 h-4 mr-2" />
                         )}
-                        {group.category === "desktop" && (
+                        {group.category === "computers" && (
                           <Monitor className="w-4 h-4 mr-2" />
                         )}
-                        {group.category === "tv" && (
+                        {group.category === "displays" && (
                           <Tv className="w-4 h-4 mr-2" />
-                        )}
-                        {group.category === "laptop" && (
-                          <Laptop className="w-4 h-4 mr-2" />
                         )}
                         {getCategoryLabel(group.category)}
                       </Select.Label>

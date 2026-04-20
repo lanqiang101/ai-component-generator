@@ -1,6 +1,6 @@
 
 import { create } from 'zustand';
-import type { AppState, ModelConfig, PreviewResolution, SystemConfig, RefinedRequirements } from '../types';
+import type { AppState, ModelConfig, PreviewResolution, SystemConfig, RefinedRequirements, GenerationState } from '../types';
 import { defaultComponentParams } from '../types/defaults';
 
 const STORAGE_KEYS = {
@@ -100,7 +100,7 @@ export const useStore = create<AppState>((set, get) => ({
   },
   setGeneration: (state) => {
     set((prev) => ({
-      generation: { ...prev.generation, ...state },
+      generation: { ...prev.generation, ...state } as GenerationState,
     }));
   },
 
