@@ -4,12 +4,13 @@
  * 
  * 架构说明：
  * - Pages Functions → Cloudflare Worker (AI 代理) → 火山方舟 API
- * - Worker URL: https://ai-component-proxy.xuyongqiang916.workers.dev
+ * - 支持通过环境变量 AI_PROXY_URL 配置 Worker URL
+ * - 默认使用云端 Worker: https://ai-component-proxy.xuyongqiang916.workers.dev
  */
 
 export async function callAI(prompt: string, env?: any): Promise<string> {
-  // 使用已部署的 Cloudflare Worker 作为代理
-  const WORKER_URL = 'https://ai-component-proxy.xuyongqiang916.workers.dev';
+  // 从环境变量获取 Worker URL，如果没有则使用默认云端地址
+  const WORKER_URL = env?.AI_PROXY_URL || 'https://ai-component-proxy.xuyongqiang916.workers.dev';
   
   console.log('调用 Cloudflare Worker 代理:', WORKER_URL);
 
