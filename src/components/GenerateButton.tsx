@@ -1,21 +1,23 @@
-
 import React from 'react';
 import { Zap, Loader2 } from 'lucide-react';
 import { useStore } from '../store/useStore';
 
 export const GenerateButton: React.FC = () => {
-  const { generation, generateComponent } = useStore();
+  const { generation, generateComponent, isRefiningRequirements } = useStore();
+
+  // 判断是否正在处理（包括需求整理和代码生成）
+  const isProcessing = generation.isGenerating || isRefiningRequirements;
 
   return (
     <button
       onClick={generateComponent}
-      disabled={generation.isGenerating}
+      disabled={isProcessing}
       className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg overflow-hidden transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
     >
-      {generation.isGenerating ? (
+      {isProcessing ? (
         <>
           <Loader2 size={18} className="animate-spin" />
-          <span>生成中...</span>
+          <span>{isRefiningRequirements ? 'AI 整理需求中...' : '生成中...'}</span>
         </>
       ) : (
         <>

@@ -1,6 +1,6 @@
 
 import { create } from 'zustand';
-import type { AppState, ModelConfig, ComponentGenerationParams, PreviewResolution, GenerationState, SystemConfig } from '../types';
+import type { AppState, ModelConfig, PreviewResolution, SystemConfig, RefinedRequirements } from '../types';
 import { defaultComponentParams } from '../types/defaults';
 
 const STORAGE_KEYS = {
@@ -108,9 +108,38 @@ export const useStore = create<AppState>((set, get) => ({
   isExpandingDescription: false,
   setIsExpandingDescription: (isExpanding: boolean) => set({ isExpandingDescription: isExpanding }),
 
-  // Generate component
+  // Requirements refinement state
+  isRefiningRequirements: false,
+  refinedRequirements: null,
+  showRefinementDialog: false,
+  setShowRefinementDialog: (show: boolean) => set({ showRefinementDialog: show }),
+  setRefinedRequirements: (requirements: RefinedRequirements | null) => set({ refinedRequirements: requirements }),
+
+  // Generate component - 修改为先弹出需求整理弹窗
   generateComponent: async () => {
-    const { systemConfig, params, models, setGeneration, setCurrentCode } = get();
+    const { params } = get();
+    
+    // 验证必填字段
+    if (!params.componentName || !params.description) {
+      const { setGeneration } = get();
+      setGeneration({
+        isGenerating: false,
+        error: '请填写组件名称和描述',
+      });
+      return false;
+    }
+
+    // 先显示弹窗，再开始需求整理
+    set({ showRefinementDialog: true });
+    
+    // 进行需求整理
+    const success = await get().refineRequirements();
+    return success;
+  },
+
+  // Refine requirements with AI
+  refineRequirements: async () => {
+    const { systemConfig, params, models, setGeneration } = get();
     
     if (!systemConfig?.componentGenerationModelId) {
       setGeneration({
@@ -121,6 +150,54 @@ export const useStore = create<AppState>((set, get) => ({
     }
 
     try {
+      set({ isRefiningRequirements: true });
+      setGeneration({ error: null });
+      
+      // 找到选中的模型完整信息
+      const model = models.find(m => m.id === systemConfig.componentGenerationModelId);
+      if (!model) {
+        throw new Error('选中的模型不存在，请重新选择');
+      }
+      
+      // Call backend API for requirements refinement
+      const response = await fetch('/api/refine-requirements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model, params }),
+      });
+      
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      
+      // 保存整理后的需求
+      set({ refinedRequirements: result.data.refinedRequirements });
+      set({ isRefiningRequirements: false });
+      return true;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : '需求整理失败';
+      setGeneration({ isGenerating: false, error: errorMessage });
+      set({ isRefiningRequirements: false });
+      return false;
+    }
+  },
+
+  // Confirm and generate component
+  confirmAndGenerate: async () => {
+    const { systemConfig, params, models, refinedRequirements, setGeneration, setCurrentCode } = get();
+    
+    if (!systemConfig?.componentGenerationModelId) {
+      setGeneration({
+        isGenerating: false,
+        error: '请先在模型配置中选择生成组件使用的AI模型',
+      });
+      return false;
+    }
+
+    try {
+      // 关闭弹窗
+      set({ showRefinementDialog: false });
       setGeneration({ isGenerating: true, error: null });
       
       // 找到选中的模型完整信息
@@ -129,11 +206,17 @@ export const useStore = create<AppState>((set, get) => ({
         throw new Error('选中的模型不存在，请重新选择');
       }
       
+      // 使用整理后的需求生成组件
+      const enhancedParams = {
+        ...params,
+        description: refinedRequirements?.refinedDescription || params.description,
+      };
+      
       // Call backend API
       const response = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model, params }),
+        body: JSON.stringify({ model, params: enhancedParams }),
       });
       
       const result = await response.json();
@@ -149,6 +232,14 @@ export const useStore = create<AppState>((set, get) => ({
       setGeneration({ isGenerating: false, error: errorMessage });
       return false;
     }
+  },
+
+  // Cancel refinement
+  cancelRefinement: () => {
+    set({ 
+      showRefinementDialog: false, 
+      refinedRequirements: null 
+    });
   },
 
   // Expand description with AI

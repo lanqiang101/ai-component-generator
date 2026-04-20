@@ -68,10 +68,23 @@ export interface GeneratedComponent {
   updatedAt: number;
 }
 
-export interface GenerationState {
-  isGenerating: boolean;
-  error: string | null;
+// 需求整理结果
+export interface RefinedRequirements {
+  // 整理后的需求描述（更专业、结构化）
+  refinedDescription: string;
+  // 组件结构说明
+  componentStructure: string;
+  // 功能点列表（JSON 数组字符串）
+  features: string;
+  // 原型图（ASCII 格式）
+  prototypeDiagram: string;
+  // 技术要点（JSON 数组字符串）
+  technicalNotes: string;
 }
+
+export type GenerationState = 
+  | { isGenerating: true; error: null }
+  | { isGenerating: false; error: string | null };
 
 export interface AppState {
   // UI
@@ -108,4 +121,12 @@ export interface AppState {
   isExpandingDescription: boolean;
   setIsExpandingDescription: (isExpanding: boolean) => void;
   expandDescription: () => Promise<boolean>;
+  
+  // Requirements refinement
+  isRefiningRequirements: boolean;
+  refinedRequirements: RefinedRequirements | null;
+  showRefinementDialog: boolean;
+  refineRequirements: () => Promise<boolean>;
+  confirmAndGenerate: () => Promise<boolean>;
+  cancelRefinement: () => void;
 }
