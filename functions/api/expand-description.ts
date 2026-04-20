@@ -1,33 +1,21 @@
 import { callAI } from '../utils/ai';
 
-// 调试端点 - 返回接收到的原始请求
 export async function onRequestPost(context: any) {
   try {
     const request = context.request;
     const env = context.env;
     
-    // 记录请求头
-    console.log('请求头:', Object.fromEntries(request.headers.entries()));
-    
-    // 获取原始请求体文本
-    const rawBody = await request.text();
-    console.log('原始请求体文本:', rawBody);
-    
-    // 尝试解析 JSON
+    // 解析请求体
     let body;
     try {
-      body = JSON.parse(rawBody);
-      console.log('解析后的请求体:', JSON.stringify(body, null, 2));
+      body = await request.json();
+      console.log('收到扩展描述请求:', JSON.stringify(body));
     } catch (parseError) {
-      console.error('JSON 解析失败:', parseError);
+      console.error('请求体解析失败:', parseError);
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: '请求体不是有效的 JSON 格式',
-          debug: {
-            rawBody: rawBody.substring(0, 200),
-            error: String(parseError)
-          }
+          error: '请求体格式错误' 
         }),
         { 
           status: 400,
@@ -38,18 +26,11 @@ export async function onRequestPost(context: any) {
     
     const { description, componentName } = body;
 
-    console.log('提取的参数 - description:', description, 'componentName:', componentName);
-
     if (!description || !componentName) {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: '缺少必要参数：description 和 componentName',
-          debug: {
-            receivedKeys: Object.keys(body),
-            description: description,
-            componentName: componentName
-          }
+          error: '缺少必要参数：description 和 componentName' 
         }),
         { 
           status: 400,
@@ -79,14 +60,35 @@ export async function onRequestPost(context: any) {
 - edgeCases: 边界情况数组`;
 
     console.log('开始调用 AI...');
-    const result = await callAI(prompt, env);
-    console.log('AI 调用成功');
+    const aiResponse = await callAI(prompt, env);
+    console.log('AI 调用成功，原始响应:', aiResponse.substring(0, 200));
+
+    // AI 可能返回 JSON 字符串，需要解析
+    let expandedDescription;
+    try {
+      // 尝试解析 JSON 字符串
+      const parsedJson = JSON.parse(aiResponse);
+      
+      // 如果解析成功，提取 detailedDescription 字段
+      if (parsedJson.detailedDescription) {
+        expandedDescription = parsedJson.detailedDescription;
+      } else {
+        // 如果没有 detailedDescription 字段，返回整个 JSON 对象
+        expandedDescription = JSON.stringify(parsedJson, null, 2);
+      }
+    } catch (parseError) {
+      // 如果不是 JSON 格式，直接使用原始文本
+      console.log('AI 响应不是 JSON 格式，使用原始文本');
+      expandedDescription = aiResponse;
+    }
+
+    console.log('最终返回的描述:', expandedDescription.substring(0, 200));
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         data: {
-          expandedDescription: result
+          expandedDescription: expandedDescription
         }
       }),
       { 
@@ -99,8 +101,7 @@ export async function onRequestPost(context: any) {
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error.message || 'AI 服务调用失败',
-        stack: error.stack
+        error: error.message || 'AI 服务调用失败' 
       }),
       { 
         status: 500,
