@@ -4,9 +4,29 @@ export async function onRequestPost(context: any) {
   try {
     const request = context.request;
     const env = context.env;
-    const body = await request.json();
+    
+    // 解析请求体
+    let body;
+    try {
+      body = await request.json();
+      console.log('收到请求体:', JSON.stringify(body));
+    } catch (parseError) {
+      console.error('请求体解析失败:', parseError);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: '请求体格式错误，需要有效的 JSON' 
+        }),
+        { 
+          status: 400,
+          headers: { 'Content-Type': 'application/json' }
+        }
+      );
+    }
     
     const { description, componentName } = body;
+
+    console.log('参数检查 - description:', description, 'componentName:', componentName);
 
     if (!description || !componentName) {
       return new Response(
@@ -41,12 +61,16 @@ export async function onRequestPost(context: any) {
 - dataStructure: 数据结构
 - edgeCases: 边界情况数组`;
 
+    console.log('开始调用 AI...');
     const result = await callAI(prompt, env);
+    console.log('AI 调用成功');
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        data: result 
+        data: {
+          expandedDescription: result
+        }
       }),
       { 
         status: 200,

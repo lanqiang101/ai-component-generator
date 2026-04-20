@@ -4,17 +4,36 @@ export async function onRequestPost(context: any) {
   try {
     const request = context.request;
     const env = context.env;
-    const { params } = await request.json();
     
-    if (!params) {
+    // 解析请求体
+    let body;
+    try {
+      body = await request.json();
+      console.log('收到生成请求:', JSON.stringify(body));
+    } catch (parseError) {
+      console.error('请求体解析失败:', parseError);
       return new Response(
-        JSON.stringify({ success: false, error: '缺少参数' }),
+        JSON.stringify({ success: false, error: '请求体格式错误' }),
         { 
           status: 400,
           headers: { 'Content-Type': 'application/json' }
         }
       );
     }
+    
+    const { params } = body;
+    
+    if (!params || !params.description) {
+      return new Response(
+        JSON.stringify({ success: false, error: '缺少必要参数：params.description' }),
+        { 
+          status: 400,
+          headers: { 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
+    console.log('开始生成组件代码...');
 
     // 构建简化的提示词
     const prompt = `你是一个专业的前端开发工程师，请根据以下需求生成一个 React 组件：
@@ -37,6 +56,7 @@ ${params.uiLibrary && params.uiLibrary !== 'none' ? `使用 UI 库: ${params.uiL
 开始生成代码:`;
 
     const code = await callAI(prompt, env);
+    console.log('组件代码生成成功');
 
     return new Response(
       JSON.stringify({ 
