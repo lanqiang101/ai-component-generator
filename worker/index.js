@@ -38,13 +38,13 @@ export default {
       // 构建火山方舟 API 请求
       const ARK_API_URL = 'https://ark.cn-beijing.volces.com/api/coding/v3/chat/completions';
       
-      // 从环境变量获取 API Key（支持 API_KEY 或 ARK_API_KEY）
-      const API_KEY = env.API_KEY || env.ARK_API_KEY;
+      // 从环境变量获取 API Key（你的 Dashboard 中配置的名称是 API_KEY）
+      const API_KEY = env.API_KEY;
 
       // 验证 API Key 是否存在
       if (!API_KEY) {
         return new Response(
-          JSON.stringify({ error: 'API key not configured. Please set API_KEY or ARK_API_KEY in Cloudflare Dashboard' }),
+          JSON.stringify({ error: 'API key not configured. Please set API_KEY in Cloudflare Dashboard' }),
           {
             status: 500,
             headers: { 'Content-Type': 'application/json' },
