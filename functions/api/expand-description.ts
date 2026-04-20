@@ -1,21 +1,33 @@
 import { callAI } from '../utils/ai';
 
+// 调试端点 - 返回接收到的原始请求
 export async function onRequestPost(context: any) {
   try {
     const request = context.request;
     const env = context.env;
     
-    // 解析请求体
+    // 记录请求头
+    console.log('请求头:', Object.fromEntries(request.headers.entries()));
+    
+    // 获取原始请求体文本
+    const rawBody = await request.text();
+    console.log('原始请求体文本:', rawBody);
+    
+    // 尝试解析 JSON
     let body;
     try {
-      body = await request.json();
-      console.log('收到请求体:', JSON.stringify(body));
+      body = JSON.parse(rawBody);
+      console.log('解析后的请求体:', JSON.stringify(body, null, 2));
     } catch (parseError) {
-      console.error('请求体解析失败:', parseError);
+      console.error('JSON 解析失败:', parseError);
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: '请求体格式错误，需要有效的 JSON' 
+          error: '请求体不是有效的 JSON 格式',
+          debug: {
+            rawBody: rawBody.substring(0, 200),
+            error: String(parseError)
+          }
         }),
         { 
           status: 400,
@@ -26,13 +38,18 @@ export async function onRequestPost(context: any) {
     
     const { description, componentName } = body;
 
-    console.log('参数检查 - description:', description, 'componentName:', componentName);
+    console.log('提取的参数 - description:', description, 'componentName:', componentName);
 
     if (!description || !componentName) {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: '缺少必要参数：description 和 componentName' 
+          error: '缺少必要参数：description 和 componentName',
+          debug: {
+            receivedKeys: Object.keys(body),
+            description: description,
+            componentName: componentName
+          }
         }),
         { 
           status: 400,
@@ -82,7 +99,8 @@ export async function onRequestPost(context: any) {
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error.message || 'AI 服务调用失败' 
+        error: error.message || 'AI 服务调用失败',
+        stack: error.stack
       }),
       { 
         status: 500,
