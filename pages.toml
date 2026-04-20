@@ -1,9 +1,0 @@
-# Cloudflare Pages 配置
-name = "ai-component-generator"
-pages_build_output_dir = "dist"
-compatibility_date = "2024-01-01"
-
-# 环境变量配置（仅用于本地调试）
-# 生产环境的 Secret 通过 wrangler pages secret put 设置
-[vars]
-ENVIRONMENT = "development"

@@ -42,6 +42,8 @@ npm run dev:pages
 npx wrangler pages dev
 ```
 
+**注意**：Cloudflare Pages 使用根目录的 [wrangler.toml](file:///Users/xuyongqiang/Desktop/xm/ai-component-generator/wrangler.toml) 作为配置文件，不支持 `--config` 参数。
+
 **功能**：
 - ✅ 本地启动开发服务器（默认 `http://localhost:8788`）
 - ✅ 模拟 Pages Functions 的路由和行为

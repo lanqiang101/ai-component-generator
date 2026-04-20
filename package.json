@@ -7,7 +7,7 @@
     "dev": "cross-env https_proxy=http://127.0.0.1:7890 http_proxy=http://127.0.0.1:7890 concurrently \"node server/index.js\" \"vite\"",
     "dev:front": "vite",
     "dev:back": "cross-env https_proxy=http://127.0.0.1:7890 http_proxy=http://127.0.0.1:7890 node server/index.js",
-    "dev:pages": "npx wrangler pages dev --config pages.toml",
+    "dev:pages": "npx wrangler pages dev",
     "dev:worker": "cd worker && wrangler dev",
     "deploy:worker": "cd worker && wrangler deploy",
     "test:worker": "node test-worker.js",
