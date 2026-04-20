@@ -7,11 +7,14 @@ export async function callAI(prompt: string, env?: any): Promise<string> {
   const ARK_API_URL = 'https://ark.cn-beijing.volces.com/api/coding/v3/chat/completions';
   
   // 从环境变量获取 API Key（Pages Functions 通过 context.env 传递）
-  const API_KEY = env?.ARK_API_KEY || process.env.ARK_API_KEY;
+  // 注意：Edge Runtime 不支持 process.env，必须使用 env 参数
+  const API_KEY = env?.ARK_API_KEY;
 
   if (!API_KEY) {
-    throw new Error('API key not configured');
+    throw new Error('API key not configured. Please set ARK_API_KEY in Cloudflare Dashboard or using wrangler pages secret put');
   }
+
+  console.log('调用火山方舟 API...');
 
   try {
     const response = await fetch(ARK_API_URL, {
@@ -31,16 +34,20 @@ export async function callAI(prompt: string, env?: any): Promise<string> {
     });
 
     if (!response.ok) {
-      throw new Error(`API request failed with status ${response.status}`);
+      const errorText = await response.text();
+      console.error('API 请求失败:', response.status, errorText);
+      throw new Error(`API request failed with status ${response.status}: ${errorText}`);
     }
 
     const data = await response.json();
+    console.log('API 响应成功');
     
     // 提取 AI 回复内容
     if (data.choices && data.choices[0] && data.choices[0].message) {
       return data.choices[0].message.content;
     }
     
+    console.error('API 响应格式异常:', JSON.stringify(data));
     throw new Error('Invalid API response format');
   } catch (error: any) {
     console.error('AI API call failed:', error);
