@@ -1,8 +1,51 @@
-# AI Frontend Component Generator
+# AI Component Generator
 
-AI-powered frontend component generator. Configure your component requirements via a form, AI generates code for your chosen framework/language, with real-time preview and editing.
+Based AI 的前端组件生成器，使用火山方舟大模型自动生成 React 组件代码。
 
-[中文版](./README_zh.md)
+## 快速开始
+
+### 1. 安装依赖
+
+```bash
+npm install
+```
+
+### 2. 配置环境变量
+
+项目已经配置了正式的 Worker URL，无需修改：
+
+```bash
+# .env 文件中已经配置
+VITE_AI_PROXY_URL=https://ai-component-proxy.xuyongqiang916.workers.dev
+AI_PROXY_URL=https://ai-component-proxy.xuyongqiang916.workers.dev
+```
+
+### 3. 测试 Worker 连接
+
+```bash
+# 测试 Worker 是否可访问
+npm run test:worker
+```
+
+**注意**：如果你在国内网络环境下，访问 Cloudflare Workers 可能会遇到网络限制。如果遇到连接超时：
+- 尝试使用代理或 VPN
+- 或者部署自己的 Worker 到其他地区
+
+### 4. 启动开发服务器
+
+```bash
+npm run dev
+```
+
+访问：
+- 前端：http://localhost:3000
+- 后端：http://localhost:3001
+
+### 5. 构建生产环境
+
+```bash
+npm run build
+```
 
 ## ✨ Features
 
@@ -17,29 +60,6 @@ AI-powered frontend component generator. Configure your component requirements v
 - 💾 **No Database Required** - Model configuration stored in browser localStorage
 - 🌓 **Dark Mode** - Supports auto/light/dark theme modes
 - 📝 **Code Editor** - Syntax highlighting, copy & download
-
-## 🚀 Quick Start
-
-### Install Dependencies
-
-```bash
-npm install
-```
-
-### Start Dev Server
-
-```bash
-npm run dev
-```
-
-Frontend runs at `http://localhost:3000`  
-Backend API runs at `http://localhost:3001`
-
-### Build for Production
-
-```bash
-npm run build
-```
 
 ## 📖 Usage Flow
 

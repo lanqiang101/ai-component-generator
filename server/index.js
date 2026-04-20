@@ -1,7 +1,28 @@
 import express from 'express';
+import { fileURLToPath } from 'url';
+import path from 'path';
+import dotenv from 'dotenv';
+import { ProxyAgent, setGlobalDispatcher } from 'undici';
+
+// 加载 .env 文件中的环境变量
+dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// 配置代理（如果设置了代理环境变量）
+if (process.env.https_proxy || process.env.http_proxy) {
+  const proxyUrl = process.env.https_proxy || process.env.http_proxy;
+  console.log(`🔧 配置代理: ${proxyUrl}`);
+  const proxyAgent = new ProxyAgent(proxyUrl);
+  setGlobalDispatcher(proxyAgent);
+}
+
+// 声明 process 变量（解决 ESLint no-undef 错误）
+const { env } = process;
 
 const app = express();
-const PORT = 3001;
+const PORT = env.PORT || 3001;
 
 app.use(express.json());
 
@@ -21,22 +42,17 @@ app.use((req, res, next) => {
 
 app.post('/api/generate', async (req, res) => {
   try {
-    const { model, params } = req.body;
+    const { params } = req.body;
     
     if (!params) {
       return res.status(400).json({ success: false, error: '缺少参数' });
-    }
-
-    // 前端需要从localStorage拿到model配置一起发过来
-    if (!model) {
-      return res.status(400).json({ success: false, error: '必须提供完整模型配置' });
     }
 
     // 构建提示词
     const prompt = buildPrompt(params);
 
     // 调用 AI API
-    const result = await callAI(model, prompt);
+    const result = await callAI(null, prompt);
     
     res.json({ 
       success: true, 
@@ -375,122 +391,97 @@ function getUILibraryName(value) {
   return map[value] || value;
 }
 
+/**
+ * 调用 AI API
+ * 使用 Cloudflare Worker 代理请求，避免暴露 API Key
+ */
 async function callAI(model, prompt) {
-  // 规范化 API URL - 确保使用正确的端点
-  let apiUrl = model.baseUrl;
-  
-  // 如果是火山方舟，确保使用正确的端点
-  if (apiUrl.includes('volces.com')) {
-    // 移除末尾的斜杠
-    apiUrl = apiUrl.replace(/\/+$/, '');
-    
-    // 如果用户配置的是旧的 /api/v3，自动修正为 /api/coding/v3
-    if (apiUrl.endsWith('/api/v3')) {
-      console.warn('检测到旧的 API 地址格式，自动修正为 /api/coding/v3');
-      apiUrl = apiUrl.replace('/api/v3', '/api/coding/v3');
-    }
-    
-    // 确保 URL 以 /chat/completions 结尾
-    if (!apiUrl.endsWith('/chat/completions')) {
-      // 如果已经有 /v3 或 /coding/v3，直接追加
-      if (apiUrl.endsWith('/v3') || apiUrl.endsWith('/coding/v3')) {
-        apiUrl = `${apiUrl}/chat/completions`;
-      }
-    }
-  }
+  // 使用 Cloudflare Worker 代理 URL
+  const proxyUrl = env.AI_PROXY_URL || 'http://localhost:8787';
 
   const headers = {
     'Content-Type': 'application/json',
   };
 
-  if (model.mode === 'api' && model.apiKey) {
-    headers['Authorization'] = `Bearer ${model.apiKey}`;
-  }
-
   const body = {
-    model: model.modelName,
+    model: 'ark-code-latest',
     messages: [
       { role: 'user', content: prompt }
     ],
-    temperature: model.temperature,
-    max_tokens: model.maxTokens,
+    temperature: 0.7,
+    max_tokens: 4096,
   };
 
-  console.log('调用 AI API:', {
-    url: apiUrl,
-    model: model.modelName,
-    mode: model.mode,
-    hasApiKey: !!model.apiKey,
+  console.log('调用 AI API (通过 Cloudflare Worker 代理):', {
+    url: proxyUrl,
+    model: 'ark-code-latest',
   });
 
   try {
-    const response = await fetch(apiUrl, {
+    console.log('🌐 正在请求 AI API...');
+    console.log('📡 代理配置:', {
+      https_proxy: env.https_proxy,
+      http_proxy: env.http_proxy,
+    });
+    
+    const response = await fetch(proxyUrl, {
       method: 'POST',
       headers,
       body: JSON.stringify(body),
     });
 
-    console.log('AI API 响应状态:', response.status);
-
     if (!response.ok) {
-      const text = await response.text();
-      console.error('AI API 错误响应:', text);
-      throw new Error(`API 调用失败: ${response.status} ${text}`);
+      const errorText = await response.text();
+      console.error(`❌ API 请求失败: ${response.status}`, errorText);
+      throw new Error(`API 请求失败: ${response.status} ${errorText}`);
     }
 
     const data = await response.json();
-    console.log('AI API 响应数据:', JSON.stringify(data).substring(0, 200));
-    
-    // 处理 OpenAI 兼容格式
+
+    // 处理火山方舟的响应格式
     if (data.choices && data.choices.length > 0) {
-      let content = data.choices[0].message.content;
-      // 移除可能的代码包裹标记
-      content = content.replace(/^```[a-z]*\n/, '').replace(/\n```$/, '');
-      return content;
+      console.log('✅ AI API 调用成功');
+      return data.choices[0].message.content;
+    } else {
+      console.error('❌ API 返回格式错误:', JSON.stringify(data, null, 2));
+      throw new Error('API 返回格式错误');
     }
-
-    // 处理其他格式
-    if (data.output) {
-      return data.output;
+  } catch (err) {
+    console.error('❌ AI API 调用失败:', err.message);
+    console.error('🔍 错误详情:', err.cause || err);
+    
+    // 提供更友好的错误提示
+    if (err.message.includes('fetch failed') || err.message.includes('timeout')) {
+      console.error('\n🔍 可能的原因：');
+      console.error('1. 代理工具未运行或端口不正确');
+      console.error('2. 国内网络无法直接访问 Cloudflare Workers');
+      console.error('\n💡 解决方案：');
+      console.error('方案 1: 检查代理工具是否运行');
+      console.error('  - 确认 Clash/Shadowsocks 等代理工具已启动');
+      console.error('  - 确认代理端口是 7890（或其他端口）');
+      console.error('\n方案 2: 使用本地 Worker 开发');
+      console.error('  cd worker && wrangler dev');
+      console.error('  修改 .env: AI_PROXY_URL=http://localhost:8787');
     }
-
-    if (data.response) {
-      return data.response;
-    }
-
-    throw new Error('无法解析 AI 响应格式');
-  } catch (error) {
-    console.error('AI API 调用异常:', error);
-    if (error instanceof TypeError && error.message.includes('fetch failed')) {
-      throw new Error(`网络连接失败，请检查：
-1. 是否能访问 ${apiUrl}
-2. 是否需要配置代理
-3. API 地址是否正确
-
-原始错误: ${error.message}`);
-    }
-    throw error;
+    
+    throw new Error(`AI 服务调用失败: ${err.message}`);
   }
 }
 
 // ===== AI 需求整理 API =====
 app.post('/api/refine-requirements', async (req, res) => {
   try {
-    const { model, params } = req.body;
+    const { params } = req.body;
     
     if (!params) {
       return res.status(400).json({ success: false, error: '缺少参数' });
-    }
-
-    if (!model) {
-      return res.status(400).json({ success: false, error: '必须提供完整模型配置' });
     }
 
     // 构建需求整理提示词
     const prompt = buildRefinementPrompt(params);
 
     // 调用 AI API
-    const result = await callAI(model, prompt);
+    const result = await callAI(null, prompt);
     
     // 解析 AI 返回的结构化数据
     const refinedRequirements = parseRefinedRequirements(result);
@@ -619,7 +610,7 @@ columns 1
   Actions["操作按钮区"]
 \`\`\`
 
-请直接 output JSON 格式的结果，不要包含任何解释或其他文字。`;
+Please directly output JSON 格 format的结果, don't contain any explanation或其他文字。`;
 
   return promptText;
 }
@@ -667,21 +658,17 @@ function parseRefinedRequirements(result) {
 // ===== AI 扩写组件描述 API =====
 app.post('/api/expand-description', async (req, res) => {
   try {
-    const { model, description, componentName } = req.body;
+    const { description, componentName } = req.body;
     
     if (!description) {
       return res.status(400).json({ success: false, error: '缺少描述内容' });
-    }
-
-    if (!model) {
-      return res.status(400).json({ success: false, error: '必须提供完整模型配置' });
     }
 
     // 构建扩写提示词
     const prompt = buildExpandPrompt(description, componentName);
 
     // 调用 AI API
-    const expandedDescription = await callAI(model, prompt);
+    const expandedDescription = await callAI(null, prompt);
     
     res.json({ 
       success: true, 

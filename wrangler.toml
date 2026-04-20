@@ -1,0 +1,31 @@
+# 基础配置
+name = "ai-component-proxy" # 你的Worker名称
+main = "src/index.js" # 你的Worker代码入口文件（若用默认worker.js则改为"worker.js"）
+compatibility_date = "2026-04-20" # 兼容日期（填当前日期即可）
+
+# 定义生产环境（关联main分支）
+[
+env.production
+]
+route = "ai-component-proxy.xuyongqiang916.workers.dev/*" # 生产域名
+vars = { ENV_TYPE = "production" } # 环境标识（可选）
+
+# 定义开发环境（关联daily分支）
+[
+env.development
+]
+route = "ai-component-proxy-dev.xuyongqiang916.workers.dev/*" # 开发域名（自定义）
+vars = { ENV_TYPE = "development" } # 环境标识（可选）
+
+# Git自动部署配置（关联分支与环境）
+[
+deploy
+]
+branch = "main" # main分支部署到生产环境
+env = "production"
+
+[
+deploy.development
+]
+branch = "daily" # daily分支部署到开发环境
+env = "development"

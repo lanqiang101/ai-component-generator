@@ -2,21 +2,18 @@
 import { useEffect } from 'react';
 import { createBrowserRouter, RouterProvider, useLocation } from 'react-router-dom';
 import { HomePage } from './pages/HomePage';
-import { ConfigPage } from './pages/ConfigPage';
-import { ModelManagementPage } from './pages/ModelManagementPage';
 import { useStore } from './store/useStore';
 import { PenTool, Moon, Sun, Monitor } from 'lucide-react';
 import { Tooltip } from './components/ui/Tooltip';
 
 function Layout() {
-  const { darkMode, toggleDarkMode, loadModels, loadSystemConfig } = useStore();
+  const { darkMode, toggleDarkMode, loadModels } = useStore();
   const location = useLocation();
 
   // 加载数据
   useEffect(() => {
     loadModels();
-    loadSystemConfig();
-  }, [loadModels, loadSystemConfig]);
+  }, [loadModels]);
 
   // 处理暗黑模式
   useEffect(() => {
@@ -86,26 +83,6 @@ function Layout() {
               >
                 生成器
               </a>
-              <a
-                href="/config"
-                className={`px-3 py-2 text-sm font-medium rounded-md transition-all ${
-                  location.pathname === '/config'
-                    ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800'
-                }`}
-              >
-                模型配置
-              </a>
-              <a
-                href="/models"
-                className={`px-3 py-2 text-sm font-medium rounded-md transition-all ${
-                  location.pathname === '/models'
-                    ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800'
-                }`}
-              >
-                模型管理
-              </a>
             </nav>
 
             <div className="flex items-center gap-2">
@@ -145,8 +122,6 @@ const router = createBrowserRouter([
     element: <Layout />,
     children: [
       { index: true, element: <HomePage /> },
-      { path: 'config', element: <ConfigPage /> },
-      { path: 'models', element: <ModelManagementPage /> },
     ],
   },
 ]);

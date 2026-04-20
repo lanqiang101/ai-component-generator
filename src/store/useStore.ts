@@ -139,31 +139,17 @@ export const useStore = create<AppState>((set, get) => ({
 
   // Refine requirements with AI
   refineRequirements: async () => {
-    const { systemConfig, params, models, setGeneration } = get();
+    const { params, setGeneration } = get();
     
-    if (!systemConfig?.componentGenerationModelId) {
-      setGeneration({
-        isGenerating: false,
-        error: '请先在模型配置中选择生成组件使用的AI模型',
-      });
-      return false;
-    }
-
     try {
       set({ isRefiningRequirements: true });
       setGeneration({ error: null });
-      
-      // 找到选中的模型完整信息
-      const model = models.find(m => m.id === systemConfig.componentGenerationModelId);
-      if (!model) {
-        throw new Error('选中的模型不存在，请重新选择');
-      }
       
       // Call backend API for requirements refinement
       const response = await fetch('/api/refine-requirements', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model, params }),
+        body: JSON.stringify({ params }),
       });
       
       const result = await response.json();
@@ -185,26 +171,12 @@ export const useStore = create<AppState>((set, get) => ({
 
   // Confirm and generate component
   confirmAndGenerate: async () => {
-    const { systemConfig, params, models, refinedRequirements, setGeneration, setCurrentCode } = get();
+    const { params, refinedRequirements, setGeneration, setCurrentCode } = get();
     
-    if (!systemConfig?.componentGenerationModelId) {
-      setGeneration({
-        isGenerating: false,
-        error: '请先在模型配置中选择生成组件使用的AI模型',
-      });
-      return false;
-    }
-
     try {
       // 关闭弹窗
       set({ showRefinementDialog: false });
       setGeneration({ isGenerating: true, error: null });
-      
-      // 找到选中的模型完整信息
-      const model = models.find(m => m.id === systemConfig.componentGenerationModelId);
-      if (!model) {
-        throw new Error('选中的模型不存在，请重新选择');
-      }
       
       // 使用整理后的需求生成组件
       const enhancedParams = {
@@ -216,7 +188,7 @@ export const useStore = create<AppState>((set, get) => ({
       const response = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model, params: enhancedParams }),
+        body: JSON.stringify({ params: enhancedParams }),
       });
       
       const result = await response.json();
@@ -244,16 +216,8 @@ export const useStore = create<AppState>((set, get) => ({
 
   // Expand description with AI
   expandDescription: async () => {
-    const { systemConfig, params, models, setParams, setIsExpandingDescription, setGeneration } = get();
+    const { params, setParams, setIsExpandingDescription, setGeneration } = get();
     
-    if (!systemConfig?.componentGenerationModelId) {
-      setGeneration({
-        isGenerating: false,
-        error: '请先在模型配置中选择生成组件使用的AI模型',
-      });
-      return false;
-    }
-
     if (!params.description || params.description.trim().length === 0) {
       setGeneration({
         isGenerating: false,
@@ -266,18 +230,11 @@ export const useStore = create<AppState>((set, get) => ({
       setIsExpandingDescription(true);
       setGeneration({ error: null });
       
-      // 找到选中的模型完整信息
-      const model = models.find(m => m.id === systemConfig.componentGenerationModelId);
-      if (!model) {
-        throw new Error('选中的模型不存在，请重新选择');
-      }
-      
       // Call backend API for description expansion
       const response = await fetch('/api/expand-description', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          model, 
           description: params.description,
           componentName: params.componentName 
         }),
