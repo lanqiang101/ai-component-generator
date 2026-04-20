@@ -38,7 +38,7 @@ export default {
       // 构建火山方舟 API 请求
       const ARK_API_URL = 'https://ark.cn-beijing.volces.com/api/coding/v3/chat/completions';
       
-      // 从环境变量获取 API Key（你的 Dashboard 中配置的名称是 API_KEY）
+      // 从环境变量获取 API Key（Dashboard 中配置的名称是 API_KEY）
       const API_KEY = env.API_KEY;
 
       // 验证 API Key 是否存在
