@@ -1,7 +1,7 @@
 /**
  * Cloudflare Worker - AI API Key 加密中转
  * 
- * 作用：安全地中转火山方舟 API 请求，避免在前端或后端暴露 API Key
+ * 作用：安全地中转火山方舟 API 请求，避免在暴露 API Key
  * 
  * 部署步骤：
  * 1. 登录 Cloudflare Dashboard
@@ -38,7 +38,7 @@ export default {
       // 构建火山方舟 API 请求
       const ARK_API_URL = 'https://ark.cn-beijing.volces.com/api/coding/v3/chat/completions';
       
-      // 从环境变量获取 API Key（Dashboard 中配置的名称是 API_KEY）
+      // 从环境变量获取 API Key（你的 Dashboard 中配置的名称是 API_KEY）
       const API_KEY = env.API_KEY;
 
       // 验证 API Key 是否存在

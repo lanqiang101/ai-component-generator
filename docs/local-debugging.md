@@ -14,6 +14,21 @@ npm install -g wrangler
 npx wrangler --version
 ```
 
+## 🚀 自动部署配置
+
+本项目已配置 **Cloudflare Git 集成自动部署**：
+
+- ✅ **Pages 项目**：推送代码到 [main](file:///Users/xuyongqiang/Desktop/xm/ai-component-generator/src/components/CodeEditorPanel.tsx#L260-L260) 分支 → 自动部署前端 + Pages Functions
+- ✅ **Worker 项目**：推送代码到 [main](file:///Users/xuyongqiang/Desktop/xm/ai-component-generator/src/components/CodeEditorPanel.tsx#L260-L260) 分支 → 自动部署 Worker（当 `worker/` 目录有变化时）
+
+**无需手动部署或配置 GitHub Actions！**
+
+详细配置请参考 Cloudflare Dashboard：
+- Pages: https://dash.cloudflare.com > Workers & Pages > ai-component-generator
+- Worker: https://dash.cloudflare.com > Workers & Pages > ai-component-proxy
+
+---
+
 ## 🔧 本地调试方式
 
 ### 1. Pages Functions 本地调试（推荐）
@@ -108,7 +123,7 @@ curl -X POST http://localhost:8787 \
 
 **预期响应**：
 
-```json
+```
 {
   "id": "msg-xxx",
   "choices": [
