@@ -59,7 +59,7 @@ export default {
 
     // 构建火山方舟 API 请求
     const ARK_API_URL = 'https://ark.cn-beijing.volces.com/api/coding/v3/chat/completions';
-    const API_KEY = env.ARK_API_KEY;
+    const API_KEY = env.API_KEY;
 
     if (!API_KEY) {
       return new Response(JSON.stringify({ error: 'API key not configured' }), {

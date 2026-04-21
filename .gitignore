@@ -8,6 +8,9 @@ dist-ssr/
 build/
 *.local
 
+# Wrangler temporary files
+.wrangler/
+
 # Environment variables
 .env
 .env.local
