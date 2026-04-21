@@ -16,9 +16,9 @@ upstream_protocol = "http"
 [env.production]
 vars = { ENV_TYPE = "production" }
 
-# 开发环境配置
-[env.development]
-vars = { ENV_TYPE = "development" }
+# 预览环境配置 (原 development 改为 preview)
+[env.preview]
+vars = { ENV_TYPE = "preview" }
 
 # Git 自动部署配置
 [deploy]

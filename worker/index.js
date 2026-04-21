@@ -36,71 +36,7 @@ function cleanGeneratedCode(code) {
   // 2. 清理开头和结尾空白
   cleaned = cleaned.trim();
   
-  // 3. 移除结束标记
-  cleaned = cleaned.replace(/\/\/\s*\[END_OF_CODE\]\s*$/, '').trim();
-  
   return cleaned;
-}
-
-// 检查代码完整性
-function isCodeComplete(code) {
-  if (!code || typeof code !== 'string') return false;
-  
-  const trimmed = code.trim();
-  if (!trimmed) return false;
-  
-  // 1. 检查是否包含结束标记
-  if (trimmed.includes('[END_OF_CODE]')) {
-    return true;
-  }
-  
-  // 2. 检查最后一行是否完整
-  const lastLine = trimmed.split('\n').pop()?.trim() || '';
-  
-  // 不完整的特征
-  const incompletePatterns = [
-    /\.\.\.$/,                    // 省略号结尾
-    /=>\s*$/,                     // 箭头函数未完整
-    /\(\s*$/,                     // 未闭合的左括号
-    /\{\s*$/,                     // 未闭合的左大括号
-    /<\s*$/,                      // 未闭合的尖括号
-    /['"`]$/,                     // 未闭合的引号
-    /,\s*$/,                      // 逗号结尾(可能是参数列表未完整)
-    /\.\w*$/,                     // 属性访问未完整
-    /;\s*$/,                      // 分号结尾但可能是语句中间
-  ];
-  
-  for (const pattern of incompletePatterns) {
-    if (pattern.test(lastLine)) {
-      return false;
-    }
-  }
-  
-  // 3. 检查括号平衡（简化版）
-  let parenBalance = 0;
-  let braceBalance = 0;
-  let bracketBalance = 0;
-  
-  for (const char of trimmed) {
-    if (char === '(') parenBalance++;
-    else if (char === ')') parenBalance--;
-    else if (char === '{') braceBalance++;
-    else if (char === '}') braceBalance--;
-    else if (char === '[') bracketBalance++;
-    else if (char === ']') bracketBalance--;
-  }
-  
-  // 如果括号不平衡，说明代码不完整
-  if (parenBalance !== 0 || braceBalance !== 0 || bracketBalance !== 0) {
-    return false;
-  }
-  
-  // 4. 检查是否有 export default（说明有完整的组件导出）
-  if (!trimmed.includes('export default')) {
-    return false;
-  }
-  
-  return true;
 }
 
 export default {
@@ -151,27 +87,13 @@ export default {
       // 返回火山方舟的响应
       const data = await response.json();
       
-      // 如果响应中包含代码，进行清洗和完整性检查
+      // 如果响应中包含代码，进行清洗
       if (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) {
-        let originalCode = data.choices[0].message.content;
-        let cleanedCode = cleanGeneratedCode(originalCode);
+        const originalCode = data.choices[0].message.content;
+        const cleanedCode = cleanGeneratedCode(originalCode);
         
         // 记录清洗前后的长度差异（用于调试）
         console.log(`代码清洗: ${originalCode.length} → ${cleanedCode.length} 字符`);
-        
-        // 检查代码完整性
-        const codeComplete = isCodeComplete(cleanedCode);
-        
-        if (!codeComplete) {
-          console.warn('⚠️ 检测到代码不完整，建议在客户端提示用户重新生成');
-          // 注意：由于 Worker 是无状态请求-响应模式，无法自动续写
-          // 需要在客户端实现重新生成逻辑
-          data.codeComplete = false;
-          data.codeTruncated = true;
-        } else {
-          data.codeComplete = true;
-          data.codeTruncated = false;
-        }
         
         // 更新响应中的代码
         data.choices[0].message.content = cleanedCode;

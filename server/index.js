@@ -401,16 +401,6 @@ ${refinedRequirementsSection}
      \`\`\`
    - 确保所有导入的组件和库都能正常工作
 
-5. **⚠️ 代码完整性强制要求（非常重要）**:
-   - **必须输出完整的代码，不能截断！**
-   - **所有括号必须闭合**: ()、{}、<>
-   - **所有字符串必须闭合**: ""、''、\`\`
-   - **所有 JSX 标签必须闭合**: <div>...</div> 或 <div />
-   - **最后一行必须是完整的语句，不能以逗号、箭头、点号结尾**
-   - **必须在代码末尾添加结束标记**: // [END_OF_CODE]
-   - **如果代码较长，请精简代码但保持完整性，不要截断！**
-   - **自我检查**: 输出前检查最后一行是否完整，如果不完整请补充完整
-
 开始生成代码:`;
 
   return promptText;
@@ -452,7 +442,7 @@ async function callAI(model, prompt) {
       { role: 'user', content: prompt }
     ],
     temperature: 0.7,
-    max_tokens: 8192,  // 增加最大输出长度,避免长代码被截断
+    max_tokens: 4096,
   };
 
   console.log('调用 AI API (通过 Cloudflare Worker 代理):', {
