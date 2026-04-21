@@ -173,56 +173,139 @@ export const useStore = create<AppState>((set, get) => ({
   confirmAndGenerate: async () => {
     const { params, refinedRequirements, setGeneration, setCurrentCode } = get();
     
+    // 代码完整性检测函数
+    const checkCodeCompleteness = (code: string): { complete: boolean; truncated: boolean; reason?: string } => {
+      if (!code || typeof code !== 'string') {
+        return { complete: false, truncated: true, reason: '代码为空' };
+      }
+      
+      const trimmed = code.trim();
+      
+      // 1. 检查结束标记
+      if (trimmed.endsWith('// [END_OF_CODE]')) {
+        return { complete: true, truncated: false };
+      }
+      
+      // 2. 检查最后一行是否完整
+      const lines = trimmed.split('\n');
+      const lastLine = lines[lines.length - 1].trim();
+      
+      // 不完整的特征模式
+      const incompletePatterns = [
+        /,\s*$/,           // 以逗号结尾
+        /\.\.\.\s*$/,      // 以省略号结尾
+        /\.\s*$/,          // 以点号结尾（属性访问未完成）
+        /=>\s*$/,          // 以箭头函数符号结尾
+        /=\s*$/,           // 以赋值符号结尾
+        /\(\s*$/,          // 以开括号结尾
+        /\{\s*$/,          // 以开大括号结尾
+        /<[^>]*$/,         // 未闭合的 JSX 标签
+        /['"`][^'"`]*$/,   // 未闭合的字符串
+      ];
+      
+      for (const pattern of incompletePatterns) {
+        if (pattern.test(lastLine)) {
+          return { 
+            complete: false, 
+            truncated: true, 
+            reason: `最后一行不完整: "${lastLine.substring(0, 50)}..."`
+          };
+        }
+      }
+      
+      // 3. 检查是否有 export default
+      if (!trimmed.includes('export default')) {
+        return { 
+          complete: false, 
+          truncated: true, 
+          reason: '缺少 export default 语句' 
+        };
+      }
+      
+      return { complete: true, truncated: false };
+    };
+    
     try {
       // 关闭弹窗
       set({ showRefinementDialog: false });
       setGeneration({ isGenerating: true, error: null });
       
-      // 构建增强的参数，包含完整的需求分析
-      const enhancedParams = {
-        ...params,
-        description: refinedRequirements?.refinedDescription || params.description,
-        // 传递完整的需求分析信息
-        refinedRequirements: refinedRequirements ? {
-          componentStructure: refinedRequirements.componentStructure,
-          features: refinedRequirements.features,
-          prototypeDiagram: refinedRequirements.prototypeDiagram,
-          technicalNotes: refinedRequirements.technicalNotes,
-        } : undefined,
-      };
+      let finalCode = '';
+      let attemptCount = 0;
+      const maxAttempts = 3; // 最多重试 3 次
       
-      console.log('📋 传递给生成接口的参数:', {
-        componentName: enhancedParams.componentName,
-        description: enhancedParams.description.substring(0, 100) + '...',
-        hasRefinedRequirements: !!enhancedParams.refinedRequirements,
-        features: enhancedParams.refinedRequirements?.features?.length || 0,
-      });
-      
-      // Call backend API
-      const response = await fetch('/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ params: enhancedParams }),
-      });
-      
-      const result = await response.json();
-      if (!result.success) {
-        throw new Error(result.error);
-      }
-      
-      // 清理生成的代码（Worker已处理Markdown，此处仅做兜底）
-      let cleanedCode = result.data.code;
-      if (cleanedCode) {
-        cleanedCode = cleanedCode.trim();
+      while (attemptCount < maxAttempts) {
+        attemptCount++;
         
-        // 兜底：再次确保没有Markdown标记
-        cleanedCode = cleanedCode.replace(/\\?`{3}(?:tsx|typescript|javascript|jsx|vue|html|css|scss|less)?\\?\n?/gi, '');
-        cleanedCode = cleanedCode.replace(/^`{3}(?:tsx|typescript|javascript|jsx|vue|html|css|scss|less)?\s*\n?/i, '');
-        cleanedCode = cleanedCode.replace(/\n?`{3}$/, '');
-        cleanedCode = cleanedCode.trim();
+        // 构建增强的参数，包含完整的需求分析
+        const enhancedParams = {
+          ...params,
+          description: refinedRequirements?.refinedDescription || params.description,
+          // 传递完整的需求分析信息
+          refinedRequirements: refinedRequirements ? {
+            componentStructure: refinedRequirements.componentStructure,
+            features: refinedRequirements.features,
+            prototypeDiagram: refinedRequirements.prototypeDiagram,
+            technicalNotes: refinedRequirements.technicalNotes,
+          } : undefined,
+        };
+        
+        console.log(`📋 第 ${attemptCount} 次生成尝试`);
+        
+        // Call backend API
+        const response = await fetch('/api/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ params: enhancedParams }),
+        });
+        
+        const result = await response.json();
+        if (!result.success) {
+          throw new Error(result.error);
+        }
+        
+        // 清理生成的代码（Worker已处理Markdown，此处仅做兜底）
+        let cleanedCode = result.data.code;
+        if (cleanedCode) {
+          cleanedCode = cleanedCode.trim();
+          
+          // 兜底：再次确保没有Markdown标记
+          cleanedCode = cleanedCode.replace(/\\?`{3}(?:tsx|typescript|javascript|jsx|vue|html|css|scss|less)?\\?\n?/gi, '');
+          cleanedCode = cleanedCode.replace(/^`{3}(?:tsx|typescript|javascript|jsx|vue|html|css|scss|less)?\s*\n?/i, '');
+          cleanedCode = cleanedCode.replace(/\n?`{3}$/, '');
+          cleanedCode = cleanedCode.trim();
+        }
+        
+        // 检查代码完整性
+        const completenessCheck = checkCodeCompleteness(cleanedCode);
+        
+        if (completenessCheck.complete) {
+          // 代码完整，直接使用
+          finalCode = cleanedCode;
+          console.log('✅ 代码完整性检查通过');
+          break;
+        } else {
+          // 代码不完整
+          console.warn(`⚠️ 代码不完整 (${attemptCount}/${maxAttempts}):`, completenessCheck.reason);
+          
+          if (attemptCount < maxAttempts) {
+            // 还有重试次数，显示重试提示
+            setGeneration({ 
+              isGenerating: true, 
+              error: `代码结构不完整，正在重新生成... (${attemptCount}/${maxAttempts})` 
+            });
+            
+            // 等待一小段时间再重试
+            await new Promise(resolve => setTimeout(resolve, 500));
+          } else {
+            // 达到最大重试次数，使用当前代码但给出警告
+            finalCode = cleanedCode;
+            console.error('❌ 达到最大重试次数，使用当前代码');
+          }
+        }
       }
       
-      setCurrentCode(cleanedCode);
+      setCurrentCode(finalCode);
       setGeneration({ isGenerating: false });
       return true;
     } catch (err) {

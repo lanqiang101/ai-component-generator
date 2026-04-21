@@ -139,19 +139,17 @@ const MermaidDiagram: React.FC<{ chart: string; title?: string }> = ({ chart, ti
   const sanitizeMermaidSyntax = (mermaidCode: string): string => {
     let sanitized = mermaidCode;
     
-    // 处理节点标签中的特殊字符：括号、引号等
-    // 匹配模式: NodeId[Label with special chars] 或 NodeId("Label")
+    // 处理方括号形式的节点: NodeId[Label with special chars]
+    // 需要转义标签中的括号、引号等特殊字符
     sanitized = sanitized.replace(
       /(\w+)\[(.*?)\]/g,
       (_match, nodeId, label) => {
-        // 转义方括号内的特殊字符
+        // 转义双引号为 HTML 实体或其他安全形式
         const escapedLabel = label
-          .replace(/"/g, '\\"')  // 转义双引号
-          .replace(/\(/g, '\\(')  // 转义左括号
-          .replace(/\)/g, '\\)')  // 转义右括号
-          .replace(/\[/g, '\\[')  // 转义左方括号
-          .replace(/\]/g, '\\]'); // 转义右方括号
-        return `${nodeId}[${escapedLabel}]`;
+          .replace(/"/g, '&quot;')  // 转义双引号
+          .replace(/\(/g, '&#40;')  // 转义左括号为 HTML 实体
+          .replace(/\)/g, '&#41;'); // 转义右括号为 HTML 实体
+        return `${nodeId}["${escapedLabel}"]`;
       }
     );
     
@@ -160,10 +158,27 @@ const MermaidDiagram: React.FC<{ chart: string; title?: string }> = ({ chart, ti
       /(\w+)\("(.*?)"\)/g,
       (_match, nodeId, label) => {
         const escapedLabel = label
-          .replace(/"/g, '\\"')
-          .replace(/\(/g, '\\(')
-          .replace(/\)/g, '\\)');
-        return `${nodeId}("${escapedLabel}")`;
+          .replace(/"/g, '&quot;')
+          .replace(/\(/g, '&#40;')
+          .replace(/\)/g, '&#41;');
+        return `${nodeId}["${escapedLabel}"]`;
+      }
+    );
+    
+    // 处理无引号的简单节点: NodeId[Label]
+    sanitized = sanitized.replace(
+      /(\w+)\[([^\]]+)\]/g,
+      (_match, nodeId, label) => {
+        // 如果标签不包含引号,添加引号并转义特殊字符
+        if (!label.includes('"')) {
+          const escapedLabel = label
+            .replace(/\(/g, '&#40;')
+            .replace(/\)/g, '&#41;')
+            .replace(/\[/g, '&#91;')
+            .replace(/\]/g, '&#93;');
+          return `${nodeId}["${escapedLabel}"]`;
+        }
+        return _match;
       }
     );
     

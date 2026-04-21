@@ -34,6 +34,31 @@ function validateCode(code: string): { valid: boolean; error?: string } {
       cleanCode = cleanCode.trim();
     }
 
+    // ⚠️ 优先检测代码截断特征（在括号匹配之前）
+    const lines = cleanCode.split('\n');
+    const lastLine = lines[lines.length - 1].trim();
+    
+    // 截断的特征模式
+    const truncationPatterns = [
+      { pattern: /,\s*$/, desc: '逗号' },
+      { pattern: /\.\.\.\s*$/, desc: '省略号' },
+      { pattern: /\.\s*$/, desc: '点号' },
+      { pattern: /=>\s*$/, desc: '箭头函数' },
+      { pattern: /=\s*$/, desc: '赋值符号' },
+      { pattern: /\(\s*$/, desc: '开括号' },
+      { pattern: /\{\s*$/, desc: '开大括号' },
+      { pattern: /['"`][^'"`]*$/, desc: '未闭合的字符串' },
+    ];
+    
+    for (const { pattern, desc } of truncationPatterns) {
+      if (pattern.test(lastLine)) {
+        return { 
+          valid: false, 
+          error: `⚠️ 代码结构不完整/被截断\n\n最后一行以${desc}结尾，可能是 AI 生成时被截断了。\n\n建议：点击"重新生成"按钮让 AI 重新生成完整代码。` 
+        };
+      }
+    }
+
     // 检查基本语法
     const isReactCode =
       cleanCode.includes("React") ||

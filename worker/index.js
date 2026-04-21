@@ -39,6 +39,73 @@ function cleanGeneratedCode(code) {
   return cleaned;
 }
 
+// 代码完整性检测函数
+function isCodeComplete(code) {
+  if (!code || typeof code !== 'string') {
+    return { complete: false, truncated: true, reason: '代码为空' };
+  }
+  
+  const trimmed = code.trim();
+  
+  // 1. 检查结束标记
+  if (trimmed.endsWith('// [END_OF_CODE]')) {
+    return { complete: true, truncated: false };
+  }
+  
+  // 2. 检查最后一行是否完整
+  const lines = trimmed.split('\n');
+  const lastLine = lines[lines.length - 1].trim();
+  
+  // 不完整的特征模式
+  const incompletePatterns = [
+    /,\s*$/,           // 以逗号结尾
+    /\.\.\.\s*$/,      // 以省略号结尾
+    /\.\s*$/,          // 以点号结尾（属性访问未完成）
+    /=>\s*$/,          // 以箭头函数符号结尾
+    /=\s*$/,           // 以赋值符号结尾
+    /\(\s*$/,          // 以开括号结尾
+    /\{\s*$/,          // 以开大括号结尾
+    /<[^>]*$/,         // 未闭合的 JSX 标签
+    /['"`][^'"`]*$/,   // 未闭合的字符串
+  ];
+  
+  for (const pattern of incompletePatterns) {
+    if (pattern.test(lastLine)) {
+      return { 
+        complete: false, 
+        truncated: true, 
+        reason: `最后一行不完整: "${lastLine.substring(0, 50)}..."`,
+        lastLine 
+      };
+    }
+  }
+  
+  // 3. 检查是否有 export default
+  if (!trimmed.includes('export default')) {
+    return { 
+      complete: false, 
+      truncated: true, 
+      reason: '缺少 export default 语句' 
+    };
+  }
+  
+  // 4. 简单的括号平衡检查（仅作为参考，不作为主要判断依据）
+  const openParens = (trimmed.match(/\(/g) || []).length;
+  const closeParens = (trimmed.match(/\)/g) || []).length;
+  const openBraces = (trimmed.match(/\{/g) || []).length;
+  const closeBraces = (trimmed.match(/\}/g) || []).length;
+  
+  if (openParens !== closeParens || openBraces !== closeBraces) {
+    return { 
+      complete: false, 
+      truncated: true, 
+      reason: `括号不匹配: () ${openParens}/${closeParens}, {} ${openBraces}/${closeBraces}` 
+    };
+  }
+  
+  return { complete: true, truncated: false };
+}
+
 export default {
   async fetch(request, env, ctx) {
     // 仅允许 POST 请求
@@ -87,16 +154,23 @@ export default {
       // 返回火山方舟的响应
       const data = await response.json();
       
-      // 如果响应中包含代码，进行清洗
+      // 如果响应中包含代码，进行清洗和完整性检测
       if (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) {
         const originalCode = data.choices[0].message.content;
         const cleanedCode = cleanGeneratedCode(originalCode);
         
+        // 检测代码完整性
+        const completenessCheck = isCodeComplete(cleanedCode);
+        
         // 记录清洗前后的长度差异（用于调试）
         console.log(`代码清洗: ${originalCode.length} → ${cleanedCode.length} 字符`);
+        console.log(`代码完整性检查:`, completenessCheck);
         
         // 更新响应中的代码
         data.choices[0].message.content = cleanedCode;
+        
+        // 添加完整性检测元数据
+        data.codeCompleteness = completenessCheck;
       }
       
       return new Response(JSON.stringify(data), {

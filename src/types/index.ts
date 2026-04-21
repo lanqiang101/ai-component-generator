@@ -83,7 +83,7 @@ export interface RefinedRequirements {
 }
 
 export type GenerationState = 
-  | { isGenerating: true; error: null }
+  | { isGenerating: true; error: string | null }
   | { isGenerating: false; error: string | null };
 
 export interface AppState {
