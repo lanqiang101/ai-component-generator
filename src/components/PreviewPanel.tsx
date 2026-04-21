@@ -492,8 +492,21 @@ ${code}
 
     // 5.6 移除函数参数的类型注解（通用模式）
     // 匹配：param: Type 在括号内
-    processed = processed.replace(/(\w+)\s*:\s*\w+(?:<[^>]*>)?(\s*[),])/g, '$1$2');
-    processed = processed.replace(/(\w+)\s*:\s*\{[^}]*\}(\s*[),])/g, '$1$2');
+    // 注意: 不能匹配对象字面量中的属性 (如 style={{ fontWeight: 500 }})
+    // 策略: 只在函数参数列表的上下文中移除类型注解
+    
+    // 先处理函数参数中的类型注解 (更精确的模式)
+    // 匹配: (param1: Type, param2: Type) => 或 function name(param: Type)
+    processed = processed.replace(
+      /(\([^)]*)\b(\w+)\s*:\s*(?:\w+(?:<[^>]*>)?|\{[^}]*\})([^)]*\))/g,
+      '$1$2$3'
+    );
+    
+    // 处理箭头函数的单个参数: (param: Type) =>
+    processed = processed.replace(
+      /\((\w+)\s*:\s*(?:\w+(?:<[^>]*>)?|\{[^}]*\})\)\s*=>/g,
+      '($1) =>'
+    );
 
     // 6. 移除 interface 和 type 定义
     processed = processed.replace(/interface\s+\w+\s*\{[\s\S]*?\}\s*/g, "");

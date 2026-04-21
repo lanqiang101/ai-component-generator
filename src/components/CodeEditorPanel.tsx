@@ -36,6 +36,18 @@ function detectLanguage(code: string): string {
   return 'jsx';
 }
 
+// 根据文件路径获取文件扩展名
+function getFileExtension(filePath: string): string {
+  const parts = filePath.split('.');
+  if (parts.length > 1) {
+    const ext = parts.pop()?.toLowerCase() || '';
+    if (['tsx', 'jsx', 'ts', 'js'].includes(ext)) return ext;
+    if (['css', 'scss', 'less'].includes(ext)) return ext;
+    if (ext === 'vue') return 'html';
+  }
+  return 'typescript';
+}
+
 // 智能拆分代码为多个文件
 function splitCodeToFiles(code: string): CodeFile[] {
   const files: CodeFile[] = [];
@@ -131,19 +143,36 @@ const renderLineNumber = (code: string) => {
 };
 
 export const CodeEditorPanel: React.FC = () => {
-  const { currentCode, setCurrentCode } = useStore();
+  const { 
+    currentCode, 
+    setCurrentCode,
+    // 多文件生成相关
+    generatedFiles,
+    activeFilePath
+  } = useStore();
   const [copied, setCopied] = useState(false);
   const [files, setFiles] = useState<CodeFile[]>([]);
   const [activeFileIndex, setActiveFileIndex] = useState(0);
 
   // 当代码更新时，重新拆分文件
   React.useEffect(() => {
-    if (currentCode) {
+    // 优先使用多文件生成的代码
+    if (generatedFiles.length > 0) {
+      const multiFiles = generatedFiles.map(file => ({
+        name: file.name,
+        language: getFileExtension(file.path),
+        content: file.code
+      }));
+      setFiles(multiFiles);
+      // 找到当前激活的文件索引
+      const activeIndex = multiFiles.findIndex(f => f.name === activeFilePath.split('/').pop());
+      setActiveFileIndex(activeIndex >= 0 ? activeIndex : 0);
+    } else if (currentCode) {
       const newFiles = splitCodeToFiles(currentCode);
       setFiles(newFiles);
       setActiveFileIndex(newFiles.length - 1); // 默认显示最后一个文件（主组件）
     }
-  }, [currentCode]);
+  }, [currentCode, generatedFiles, activeFilePath]);
 
   const highlight = (code: string) => {
     const lang = detectLanguage(code);

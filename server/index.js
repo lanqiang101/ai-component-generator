@@ -71,6 +71,303 @@ app.post('/api/generate', async (req, res) => {
   }
 });
 
+// ====== 多文件组件化生成 API ======
+
+// 内存存储生成任务 (生产环境应使用 Redis/数据库)
+const generationTasks = new Map();
+
+// POST /api/generate/component - 启动多文件生成任务
+app.post('/api/generate/component', async (req, res) => {
+  try {
+    const { params } = req.body;
+    
+    if (!params) {
+      return res.status(400).json({ success: false, error: '缺少参数' });
+    }
+    
+    console.log('🚀 启动多文件生成任务');
+    
+    // 1. 分析组件架构
+    const architecture = await analyzeComponentArchitecture(params);
+    
+    // 2. 创建任务ID
+    const taskId = `task_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    // 3. 初始化任务
+    const task = {
+      id: taskId,
+      status: 'analyzing',
+      currentStep: 0,
+      totalSteps: architecture.totalFiles,
+      progress: 0,
+      params,
+      architecture,
+      files: [],
+      startedAt: new Date(),
+    };
+    
+    generationTasks.set(taskId, task);
+    
+    // 4. 异步执行生成
+    executeMultiFileGeneration(taskId).catch(err => {
+      console.error('❌ 生成任务失败:', err);
+      const task = generationTasks.get(taskId);
+      if (task) {
+        task.status = 'failed';
+        task.error = err.message;
+      }
+    });
+    
+    res.json({ 
+      success: true, 
+      taskId,
+      message: '生成任务已启动',
+      architecture: {
+        complexity: architecture.complexity,
+        generationMode: architecture.generationMode,
+        totalFiles: architecture.totalFiles,
+        estimatedTotalLines: architecture.estimatedTotalLines
+      }
+    });
+  } catch (err) {
+    console.error('启动生成任务失败:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/generate/:taskId/status - 查询任务状态
+app.get('/api/generate/:taskId/status', (req, res) => {
+  const task = generationTasks.get(req.params.taskId);
+  
+  if (!task) {
+    return res.status(404).json({ success: false, error: '任务不存在' });
+  }
+  
+  res.json({ 
+    success: true, 
+    task: {
+      id: task.id,
+      status: task.status,
+      progress: task.progress,
+      currentStep: task.currentStep,
+      totalSteps: task.totalSteps,
+      error: task.error,
+      files: task.files.map(f => ({
+        path: f.path,
+        name: f.name,
+        status: f.status,
+        size: f.code?.length || 0
+      }))
+    }
+  });
+});
+
+// GET /api/generate/:taskId/files - 获取所有生成的文件
+app.get('/api/generate/:taskId/files', (req, res) => {
+  const task = generationTasks.get(req.params.taskId);
+  
+  if (!task) {
+    return res.status(404).json({ success: false, error: '任务不存在' });
+  }
+  
+  if (task.status !== 'completed') {
+    return res.status(400).json({ 
+      success: false, 
+      error: '任务未完成或不存在' 
+    });
+  }
+  
+  res.json({ 
+    success: true, 
+    files: task.files
+  });
+});
+
+// 内部函数: 分析组件架构
+async function analyzeComponentArchitecture(params) {
+  const prompt = buildArchitectureAnalysisPrompt(params);
+  const result = await callAI(null, prompt);
+  
+  try {
+    // 解析 JSON
+    let jsonStr = result.trim();
+    const jsonMatch = result.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (jsonMatch) {
+      jsonStr = jsonMatch[1].trim();
+    }
+    
+    const architecture = JSON.parse(jsonStr);
+    
+    // 判断生成模式
+    const estimatedLines = architecture.estimatedTotalLines || 100;
+    const isComplex = estimatedLines > 100 || (architecture.subComponents && architecture.subComponents.length > 0);
+    
+    architecture.generationMode = isComplex ? 'multi-file' : 'single-file';
+    architecture.complexity = estimatedLines > 200 ? 'complex' : (estimatedLines > 100 ? 'medium' : 'simple');
+    architecture.totalFiles = isComplex ? (architecture.subComponents?.length || 0) + 2 : 1; // 子组件 + 主组件 + utils
+    architecture.estimatedTotalLines = estimatedLines;
+    
+    console.log('✅ 架构分析完成:', {
+      mode: architecture.generationMode,
+      complexity: architecture.complexity,
+      files: architecture.totalFiles,
+      lines: architecture.estimatedTotalLines
+    });
+    
+    return architecture;
+  } catch (err) {
+    console.error('架构分析失败:', err);
+    // 降级为单文件模式
+    return {
+      componentName: params.componentName,
+      description: params.description,
+      complexity: 'simple',
+      generationMode: 'single-file',
+      totalFiles: 1,
+      estimatedTotalLines: 80
+    };
+  }
+}
+
+// 内部函数: 执行多文件生成
+async function executeMultiFileGeneration(taskId) {
+  const task = generationTasks.get(taskId);
+  if (!task) return;
+  
+  console.log(`📦 开始执行多文件生成: ${taskId}`);
+  
+  const { architecture, params } = task;
+  
+  // 如果是单文件模式,直接使用原有逻辑
+  if (architecture.generationMode === 'single-file') {
+    task.status = 'generating';
+    const prompt = buildPrompt(params);
+    const code = await callAI(null, prompt);
+    
+    task.files = [{
+      path: 'index.tsx',
+      name: 'index.tsx',
+      code: cleanGeneratedCode(code),
+      status: 'completed',
+      generatedAt: new Date()
+    }];
+    
+    task.status = 'completed';
+    task.progress = 100;
+    task.completedAt = new Date();
+    
+    console.log('✅ 单文件生成完成');
+    return;
+  }
+  
+  // 多文件模式:逐个生成
+  task.status = 'filling';
+  
+  // 1. 生成工具函数(如果有)
+  if (architecture.utilityFunctions && architecture.utilityFunctions.length > 0) {
+    for (const util of architecture.utilityFunctions) {
+      updateTaskProgress(taskId, 'generating', util.filePath);
+      
+      const prompt = buildUtilityFunctionPrompt(util, params, task.files);
+      const code = await callAI(null, prompt);
+      
+      saveTaskFile(taskId, {
+        path: util.filePath,
+        name: util.filePath.split('/').pop(),
+        code: cleanGeneratedCode(code),
+        status: 'completed',
+        generatedAt: new Date()
+      });
+      
+      updateTaskProgress(taskId, 'completed', util.filePath);
+    }
+  }
+  
+  // 2. 生成子组件
+  if (architecture.subComponents && architecture.subComponents.length > 0) {
+    // 按优先级排序
+    const sortedComponents = [...architecture.subComponents].sort((a, b) => a.priority - b.priority);
+    
+    for (const component of sortedComponents) {
+      updateTaskProgress(taskId, 'generating', component.filePath);
+      
+      const prompt = buildSubComponentPrompt(component, params, task.files);
+      const code = await callAI(null, prompt);
+      
+      saveTaskFile(taskId, {
+        path: component.filePath,
+        name: component.filePath.split('/').pop(),
+        code: cleanGeneratedCode(code),
+        status: 'completed',
+        generatedAt: new Date()
+      });
+      
+      updateTaskProgress(taskId, 'completed', component.filePath);
+    }
+  }
+  
+  // 3. 生成主组件
+  if (architecture.mainComponent) {
+    updateTaskProgress(taskId, 'generating', architecture.mainComponent.filePath);
+    
+    const prompt = buildMainComponentPrompt(architecture, params, task.files);
+    const code = await callAI(null, prompt);
+    
+    saveTaskFile(taskId, {
+      path: architecture.mainComponent.filePath,
+      name: 'index.tsx',
+      code: cleanGeneratedCode(code),
+      status: 'completed',
+      generatedAt: new Date()
+    });
+    
+    updateTaskProgress(taskId, 'completed', architecture.mainComponent.filePath);
+  }
+  
+  task.status = 'completed';
+  task.progress = 100;
+  task.completedAt = new Date();
+  
+  console.log(`✅ 多文件生成完成: ${task.files.length} 个文件`);
+}
+
+// 辅助函数: 更新任务进度
+function updateTaskProgress(taskId, stepStatus, fileName) {
+  const task = generationTasks.get(taskId);
+  if (!task) return;
+  
+  task.currentStep++;
+  task.progress = Math.round((task.currentStep / task.totalSteps) * 100);
+  
+  console.log(`  📝 [${task.currentStep}/${task.totalSteps}] ${stepStatus}: ${fileName}`);
+}
+
+// 辅助函数: 保存文件
+function saveTaskFile(taskId, fileData) {
+  const task = generationTasks.get(taskId);
+  if (!task) return;
+  
+  task.files.push(fileData);
+}
+
+// 辅助函数: 清洗代码
+function cleanGeneratedCode(code) {
+  if (!code || typeof code !== 'string') return code;
+  
+  let cleaned = code.trim();
+  
+  // 移除 Markdown 标记
+  cleaned = cleaned.replace(/\\?`{3}(?:tsx|typescript|javascript|jsx|vue|html|css|scss|less)?\\?\n?/gi, '');
+  cleaned = cleaned.replace(/^`{3}(?:tsx|typescript|javascript|jsx|vue|html|css|scss|less)?\s*\n?/i, '');
+  cleaned = cleaned.replace(/\n?`{3}$/, '');
+  
+  // 移除结束标记
+  cleaned = cleaned.replace(/\n?\/\/ \[FILE_END\]$/, '');
+  cleaned = cleaned.replace(/\n?\/\/ \[END_OF_CODE\]$/, '');
+  
+  return cleaned.trim();
+}
+
 // 从 JSON 结构组装完整组件代码(已废弃,保留供参考)
 // function assembleComponent(codeStructure, framework) {
 //   const {
@@ -413,28 +710,41 @@ function getUILibraryName(value) {
 
 /**
  * 调用 AI API
- * 使用 Cloudflare Worker 代理请求，避免暴露 API Key
+ * 使用 Cloudflare Pages Worker 代理请求，避免暴露 API Key
  */
 async function callAI(model, prompt) {
-  // 使用 Cloudflare Worker 代理 URL
-  const proxyUrl = process.env.AI_PROXY_URL || 'http://localhost:8787';
+  // 根据环境变量选择代理 URL
+  // 本地开发默认使用测试环境的 Pages Functions
+  // 生产环境通过环境变量配置
+  const baseUrl = process.env.AI_PROXY_BASE_URL || 'https://daily-0-0-1.ai-component-generator.pages.dev';
+  const proxyUrl = `${baseUrl}/api/generate`;
 
   const headers = {
     'Content-Type': 'application/json',
   };
 
+  // 注意: 测试环境当前的 /api/generate 期望的是旧格式
+  // 需要包装成 params 对象
   const body = {
-    model: 'ark-code-latest',
-    messages: [
-      { role: 'user', content: prompt }
-    ],
-    temperature: 0.7,
-    max_tokens: 4096,
+    params: {
+      componentName: 'TempComponent',
+      description: prompt,  // 将 prompt 作为 description
+      framework: 'react-jsx',
+      componentType: 'other',
+      style: 'minimal',
+      dimensions: '',
+      needMockData: false,
+      interactive: false,
+      uiLibrary: 'none',
+      uiLibraryVersion: '',
+      stylePreprocessor: 'css',
+      extraRequirements: ''
+    }
   };
 
-  console.log('调用 AI API (通过 Cloudflare Worker 代理):', {
+  console.log('🤖 调用 AI API (通过 Pages Functions):', {
     url: proxyUrl,
-    model: 'ark-code-latest',
+    env: process.env.NODE_ENV || 'development'
   });
 
   try {
@@ -451,14 +761,16 @@ async function callAI(model, prompt) {
 
     const data = await response.json();
 
-    // 处理火山方舟的响应格式
-    if (data.choices && data.choices.length > 0) {
+    // 处理响应格式
+    if (data.success && data.data && data.data.code) {
+      return data.data.code;
+    } else if (data.choices && data.choices.length > 0) {
       return data.choices[0].message.content;
     } else {
       throw new Error('API 返回格式错误');
     }
   } catch (err) {
-    console.error('AI API 调用失败:', err);
+    console.error('❌ AI API 调用失败:', err);
     throw new Error(`AI 服务调用失败: ${err.message}`);
   }
 }
@@ -698,6 +1010,204 @@ function buildExpandPrompt(description, componentName) {
 - 直接输出扩写后的描述，不要有其他解释
 
 扩写后的描述：`;
+}
+
+// ====== 多文件生成的 Prompt 构建函数 ======
+
+// 1. 架构分析 Prompt
+function buildArchitectureAnalysisPrompt(params) {
+  const { componentName, description } = params;
+  
+  return `请分析以下组件需求，设计合理的组件架构：
+
+组件名称: ${componentName}
+描述: ${description}
+
+请判断这是一个简单组件还是复杂组件，并设计文件结构。
+
+## 判断标准
+- **简单组件** (<100行): 功能单一，无需拆分，如按钮、标签、徽章
+- **中等组件** (100-200行): 有一定复杂度，可拆分为2-3个子组件，如卡片、表单
+- **复杂组件** (>200行): 功能丰富，需要多个子组件协作，如数据表格、仪表盘
+
+## 输出格式（JSON）
+
+如果判断为**简单组件**，返回：
+\`\`\`json
+{
+  "componentName": "${componentName}",
+  "description": "组件描述",
+  "estimatedTotalLines": 80,
+  "subComponents": [],
+  "utilityFunctions": [],
+  "mainComponent": null
+}
+\`\`\`
+
+如果判断为**复杂组件**，返回：
+\`\`\`json
+{
+  "componentName": "${componentName}",
+  "description": "组件描述",
+  "estimatedTotalLines": 250,
+  "subComponents": [
+    {
+      "id": "comp1",
+      "name": "ComponentName1",
+      "filePath": "components/ComponentName1.tsx",
+      "purpose": "职责描述",
+      "props": ["prop1", "prop2"],
+      "estimatedLines": 60,
+      "priority": 1
+    }
+  ],
+  "utilityFunctions": [
+    {
+      "name": "formatPrice",
+      "filePath": "utils/formatters.ts",
+      "purpose": "格式化价格",
+      "exports": ["formatPrice"]
+    }
+  ],
+  "mainComponent": {
+    "filePath": "index.tsx",
+    "dependencies": ["ComponentName1", "ComponentName2"],
+    "estimatedLines": 80
+  }
+}
+\`\`\`
+
+## 要求
+1. 子组件数量不超过 6 个
+2. 每个子组件职责单一，不超过 80 行
+3. 工具函数放在 utils/ 目录
+4. 主组件负责组合和状态管理
+
+请直接输出 JSON，不要包含其他文字。`;
+}
+
+// 2. 工具函数生成 Prompt
+function buildUtilityFunctionPrompt(utilDesign, params, generatedFiles) {
+  const context = generatedFiles.length > 0 
+    ? `\n【已生成文件】\n${generatedFiles.map(f => `- ${f.path}: ${f.name}`).join('\n')}`
+    : '';
+  
+  return `请生成以下工具函数文件：
+
+【项目背景】
+正在生成 ${params.componentName} 组件。${context}
+
+【当前文件】
+文件路径: ${utilDesign.filePath}
+用途: ${utilDesign.purpose}
+导出函数: ${utilDesign.exports.join(', ')}
+
+【要求】
+1. 只生成这个文件的代码
+2. 不要 import React
+3. 使用纯 JavaScript
+4. 导出所有函数
+5. 代码不超过 40 行
+6. 最后一行添加: // [FILE_END]
+
+开始生成:`;
+}
+
+// 3. 子组件生成 Prompt
+function buildSubComponentPrompt(componentDesign, params, generatedFiles) {
+  const context = generatedFiles.length > 0
+    ? `\n【已生成文件】\n${generatedFiles.map(f => `- ${f.path}: 包含 ${extractExportsSummary(f.code)}`).join('\n')}`
+    : '';
+  
+  return `请生成以下子组件：
+
+【项目背景】
+${params.componentName} 组件的${componentDesign.purpose}部分。${context}
+
+【当前文件】
+文件路径: ${componentDesign.filePath}
+组件名: ${componentDesign.name}
+职责: ${componentDesign.purpose}
+Props: 
+${componentDesign.props.map(prop => `  - ${prop}`).join('\n')}
+
+【要求】
+1. 可以导入已生成的工具函数或组件
+2. 使用 React.useState 管理内部状态（如果需要）
+3. 代码不超过 ${componentDesign.estimatedLines} 行
+4. export default ${componentDesign.name}
+5. 最后一行添加: // [FILE_END]
+
+开始生成:`;
+}
+
+// 4. 主组件生成 Prompt
+function buildMainComponentPrompt(architecture, _params, _generatedFiles) {
+  const subComponentsList = architecture.subComponents?.map(c => 
+    `- ${c.filePath}: export default ${c.name}`
+  ).join('\n') || '无';
+  
+  const utilsList = architecture.utilityFunctions?.map(u =>
+    `- ${u.filePath}: 导出 ${u.exports.join(', ')}`
+  ).join('\n') || '无';
+  
+  return `请生成主组件入口文件：
+
+【项目背景】
+${architecture.componentName} 是完整的${architecture.description}组件。
+
+【已生成文件】
+子组件:
+${subComponentsList}
+
+工具函数:
+${utilsList}
+
+【当前文件】
+文件路径: index.tsx
+组件名: ${architecture.componentName}
+职责: 组合所有子组件，管理整体状态和数据流
+
+【Mock 数据】
+请在代码顶部定义 mockData 对象，包含组件所需的所有字段。
+
+【要求】
+1. 导入所有子组件和工具函数：
+${architecture.subComponents?.map(c => `   import ${c.name} from './${c.filePath}';`).join('\n')}
+${architecture.utilityFunctions?.map(u => `   import { ${u.exports.join(', ')} } from './${u.filePath}';`).join('\n')}
+
+2. 使用 React.useState 管理状态
+
+3. Props 接口使用 JSDoc 注释
+
+4. 默认使用 mockData
+
+5. export default ${architecture.componentName}
+
+6. 代码不超过 ${architecture.mainComponent?.estimatedLines || 100} 行
+
+7. 最后一行添加: // [FILE_END]
+
+开始生成:`;
+}
+
+// 辅助函数: 提取代码导出摘要
+function extractExportsSummary(code) {
+  const exports = [];
+  
+  // 查找 export default
+  const defaultExport = code.match(/export default\s+(?:function|class|const)\s+(\w+)/);
+  if (defaultExport) {
+    exports.push(`default: ${defaultExport[1]}`);
+  }
+  
+  // 查找命名导出
+  const namedExports = code.matchAll(/export\s+(?:const|function)\s+(\w+)/g);
+  for (const match of namedExports) {
+    exports.push(match[1]);
+  }
+  
+  return exports.length > 0 ? exports.join(', ') : '未知';
 }
 
 // 启动服务器

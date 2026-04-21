@@ -417,4 +417,161 @@ export const useStore = create<AppState>((set, get) => ({
       return false;
     }
   },
+  
+  // ====== 多文件组件化生成相关方法 ======
+  
+  // 初始化多文件生成状态
+  generationTaskId: null,
+  generationTask: null,
+  generatedFiles: [],
+  activeFilePath: '',
+  generationProgress: 0,
+  
+  // 启动多文件生成任务
+  startMultiFileGeneration: async (params) => {
+    try {
+      const response = await fetch('/api/generate/component', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ params }),
+      });
+      
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      
+      set({
+        generationTaskId: result.taskId,
+        generatedFiles: [],
+        activeFilePath: '',
+        generationProgress: 0,
+      });
+      
+      // 开始轮询进度
+      get().pollGenerationProgress();
+      
+      return result.taskId;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : '启动生成任务失败';
+      console.error('启动多文件生成失败:', errorMessage);
+      throw err;
+    }
+  },
+  
+  // 轮询生成进度
+  pollGenerationProgress: () => {
+    const { generationTaskId } = get();
+    if (!generationTaskId) return;
+    
+    const pollInterval = setInterval(async () => {
+      try {
+        const response = await fetch(`/api/generate/${generationTaskId}/status`);
+        const result = await response.json();
+        
+        if (!result.success) {
+          clearInterval(pollInterval);
+          return;
+        }
+        
+        const task = result.task;
+        
+        set({
+          generationTask: task,
+          generationProgress: task.progress,
+        });
+        
+        // 如果任务完成,获取文件列表
+        if (task.status === 'completed') {
+          clearInterval(pollInterval);
+          await get().loadGeneratedFiles(generationTaskId);
+        } else if (task.status === 'failed') {
+          clearInterval(pollInterval);
+          console.error('生成任务失败:', task.error);
+        }
+      } catch (err) {
+        console.error('轮询进度失败:', err);
+        clearInterval(pollInterval);
+      }
+    }, 1000); // 每秒轮询一次
+    
+    // 5分钟后自动停止轮询
+    setTimeout(() => clearInterval(pollInterval), 300000);
+  },
+  
+  // 加载生成的文件列表
+  loadGeneratedFiles: async (taskId: string) => {
+    try {
+      const response = await fetch(`/api/generate/${taskId}/files`);
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      
+      const files = result.files;
+      
+      set({
+        generatedFiles: files,
+        activeFilePath: files.length > 0 ? files[0].path : '',
+      });
+    } catch (err) {
+      console.error('加载文件列表失败:', err);
+    }
+  },
+  
+  // 设置当前激活的文件
+  setActiveFile: (path: string) => {
+    set({ activeFilePath: path });
+  },
+  
+  // 获取合并后的代码(用于预览)
+  getMergedCode: () => {
+    const { generatedFiles } = get();
+    
+    if (generatedFiles.length === 0) {
+      return '';
+    }
+    
+    // 如果是单文件模式,直接返回
+    if (generatedFiles.length === 1) {
+      return generatedFiles[0].code;
+    }
+    
+    // 多文件模式:虚拟合并
+    let mergedCode = 'import React from \'react\';\n\n';
+    
+    // 收集所有子组件和工具函数
+    const subComponents = generatedFiles
+      .filter(f => f.path !== 'index.tsx')
+      .map(file => {
+        // 移除 export default,改为普通声明
+        const cleanedCode = file.code.replace(/export default\s+/, '');
+        return `// ====== From ${file.path} ======\n${cleanedCode}\n`;
+      })
+      .join('\n');
+    
+    mergedCode += subComponents;
+    
+    // 主组件代码
+    const mainComponent = generatedFiles.find(f => f.path === 'index.tsx');
+    if (mainComponent) {
+      // 移除 import 语句
+      const mainWithoutImports = mainComponent.code.replace(/import\s+.*?from\s+['"].*?['"];/g, '');
+      mergedCode += `\n${mainWithoutImports}`;
+    }
+    
+    return mergedCode.trim();
+  },
+  
+  // 取消多文件生成
+  cancelMultiFileGeneration: () => {
+    set({
+      generationTaskId: null,
+      generationTask: null,
+      generatedFiles: [],
+      activeFilePath: '',
+      generationProgress: 0,
+    });
+  },
 }));
