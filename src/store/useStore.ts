@@ -3,6 +3,69 @@ import { create } from 'zustand';
 import type { AppState, ModelConfig, PreviewResolution, SystemConfig, RefinedRequirements } from '../types';
 import { defaultComponentParams } from '../types/defaults';
 
+// 检查代码完整性
+function checkCodeCompleteness(code: string): boolean {
+  if (!code || typeof code !== 'string') return false;
+  
+  const trimmed = code.trim();
+  if (!trimmed) return false;
+  
+  // 1. 检查是否包含结束标记
+  if (trimmed.includes('[END_OF_CODE]')) {
+    return true;
+  }
+  
+  // 2. 检查最后一行是否完整
+  const lastLine = trimmed.split('\n').pop()?.trim() || '';
+  
+  // 不完整的特征
+  const incompletePatterns = [
+    /\.\.\.$/,                    // 省略号结尾
+    /=>\s*$/,                     // 箭头函数未完整
+    /\(\s*$/,                     // 未闭合的左括号
+    /\{\s*$/,                     // 未闭合的左大括号
+    /<\s*$/,                      // 未闭合的尖括号
+    /['"`]$/,                     // 未闭合的引号
+    /,\s*$/,                      // 逗号结尾(可能是参数列表未完整)
+    /\.\w*$/,                     // 属性访问未完整
+  ];
+  
+  for (const pattern of incompletePatterns) {
+    if (pattern.test(lastLine)) {
+      console.warn('⚠️ 检测到代码不完整:', lastLine);
+      return false;
+    }
+  }
+  
+  // 3. 检查括号平衡（简化版）
+  let parenBalance = 0;
+  let braceBalance = 0;
+  let bracketBalance = 0;
+  
+  for (const char of trimmed) {
+    if (char === '(') parenBalance++;
+    else if (char === ')') parenBalance--;
+    else if (char === '{') braceBalance++;
+    else if (char === '}') braceBalance--;
+    else if (char === '[') bracketBalance++;
+    else if (char === ']') bracketBalance--;
+  }
+  
+  // 如果括号不平衡，说明代码不完整
+  if (parenBalance !== 0 || braceBalance !== 0 || bracketBalance !== 0) {
+    console.warn('⚠️ 括号不平衡:', { parenBalance, braceBalance, bracketBalance });
+    return false;
+  }
+  
+  // 4. 检查是否有 export default（说明有完整的组件导出）
+  if (!trimmed.includes('export default')) {
+    console.warn('⚠️ 未找到 export default');
+    return false;
+  }
+  
+  return true;
+}
+
 const STORAGE_KEYS = {
   models: 'aicg-models',
   systemConfig: 'aicg-system-config',
@@ -173,49 +236,95 @@ export const useStore = create<AppState>((set, get) => ({
   confirmAndGenerate: async () => {
     const { params, refinedRequirements, setGeneration, setCurrentCode } = get();
     
-    try {
-      // 关闭弹窗
-      set({ showRefinementDialog: false });
-      setGeneration({ isGenerating: true, error: null });
-      
-      // 使用整理后的需求生成组件
-      const enhancedParams = {
-        ...params,
-        description: refinedRequirements?.refinedDescription || params.description,
-      };
-      
-      // Call backend API
-      const response = await fetch('/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ params: enhancedParams }),
-      });
-      
-      const result = await response.json();
-      if (!result.success) {
-        throw new Error(result.error);
-      }
-      
-      // 清理生成的代码（Worker已处理Markdown，此处仅做兜底）
-      let cleanedCode = result.data.code;
-      if (cleanedCode) {
-        cleanedCode = cleanedCode.trim();
+    const maxRetries = 2; // 最大重试次数
+    let retryCount = 0;
+    let lastError = '';
+    
+    while (retryCount <= maxRetries) {
+      try {
+        // 关闭弹窗
+        set({ showRefinementDialog: false });
+        setGeneration({ isGenerating: true, error: null });
         
-        // 兜底：再次确保没有Markdown标记
-        cleanedCode = cleanedCode.replace(/\\?`{3}(?:tsx|typescript|javascript|jsx|vue|html|css|scss|less)?\\?\n?/gi, '');
-        cleanedCode = cleanedCode.replace(/^`{3}(?:tsx|typescript|javascript|jsx|vue|html|css|scss|less)?\s*\n?/i, '');
-        cleanedCode = cleanedCode.replace(/\n?`{3}$/, '');
-        cleanedCode = cleanedCode.trim();
+        // 构建增强的参数，包含完整的需求分析
+        const enhancedParams = {
+          ...params,
+          description: refinedRequirements?.refinedDescription || params.description,
+          // 传递完整的需求分析信息
+          refinedRequirements: refinedRequirements ? {
+            componentStructure: refinedRequirements.componentStructure,
+            features: refinedRequirements.features,
+            prototypeDiagram: refinedRequirements.prototypeDiagram,
+            technicalNotes: refinedRequirements.technicalNotes,
+          } : undefined,
+        };
+        
+        console.log('📋 传递给生成接口的参数:', {
+          componentName: enhancedParams.componentName,
+          description: enhancedParams.description.substring(0, 100) + '...',
+          hasRefinedRequirements: !!enhancedParams.refinedRequirements,
+          features: enhancedParams.refinedRequirements?.features?.length || 0,
+        });
+        
+        // Call backend API
+        const response = await fetch('/api/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ params: enhancedParams }),
+        });
+        
+        const result = await response.json();
+        if (!result.success) {
+          throw new Error(result.error);
+        }
+        
+        // 清理生成的代码（Worker已处理Markdown，此处仅做兜底）
+        let cleanedCode = result.data.code;
+        if (cleanedCode) {
+          cleanedCode = cleanedCode.trim();
+          
+          // 兜底：再次确保没有Markdown标记
+          cleanedCode = cleanedCode.replace(/\\?`{3}(?:tsx|typescript|javascript|jsx|vue|html|css|scss|less)?\\?\n?/gi, '');
+          cleanedCode = cleanedCode.replace(/^`{3}(?:tsx|typescript|javascript|jsx|vue|html|css|scss|less)?\s*\n?/i, '');
+          cleanedCode = cleanedCode.replace(/\n?`{3}$/, '');
+          cleanedCode = cleanedCode.trim();
+        }
+        
+        // 检查代码完整性
+        const isComplete = checkCodeCompleteness(cleanedCode);
+        
+        if (!isComplete && retryCount < maxRetries) {
+          console.warn(`⚠️ 代码不完整（第 ${retryCount + 1} 次尝试），自动重试...`);
+          retryCount++;
+          lastError = '代码结构不完整，正在重新生成...';
+          setGeneration({ error: lastError });
+          continue; // 重试
+        }
+        
+        if (!isComplete) {
+          throw new Error('代码结构不完整，请重新生成');
+        }
+        
+        setCurrentCode(cleanedCode);
+        setGeneration({ isGenerating: false, error: null });
+        return true;
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : '生成失败';
+        
+        if (retryCount < maxRetries) {
+          console.warn(`⚠️ 生成失败（第 ${retryCount + 1} 次尝试），自动重试...`, errorMessage);
+          retryCount++;
+          lastError = `${errorMessage} (正在重试 ${retryCount}/${maxRetries})`;
+          setGeneration({ error: lastError });
+          continue; // 重试
+        }
+        
+        setGeneration({ isGenerating: false, error: lastError || errorMessage });
+        return false;
       }
-      
-      setCurrentCode(cleanedCode);
-      setGeneration({ isGenerating: false });
-      return true;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : '生成失败';
-      setGeneration({ isGenerating: false, error: errorMessage });
-      return false;
     }
+    
+    return false;
   },
 
   // Cancel refinement

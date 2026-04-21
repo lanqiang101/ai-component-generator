@@ -85,6 +85,7 @@ function buildPrompt(params) {
     uiLibraryVersion,
     stylePreprocessor,
     extraRequirements,
+    refinedRequirements, // 新增：接收完整的需求分析
   } = params;
 
   let frameworkLabel = '';
@@ -155,6 +156,33 @@ function buildPrompt(params) {
 
   let componentTypeLabel = componentType;
 
+  // 构建需求分析部分（如果有）
+  let refinedRequirementsSection = '';
+  if (refinedRequirements) {
+    refinedRequirementsSection = `
+
+## 📋 详细需求分析（重要参考！）
+
+### 功能列表
+${refinedRequirements.features?.map((f, i) => `${i + 1}. ${f}`).join('\n') || '无'}
+
+### 技术要点
+${refinedRequirements.technicalNotes?.map((t, i) => `${i + 1}. ${t}`).join('\n') || '无'}
+
+### 组件结构参考
+\`\`\`mermaid
+${refinedRequirements.componentStructure || ''}
+\`\`\`
+
+### 布局原型参考
+\`\`\`mermaid
+${refinedRequirements.prototypeDiagram || ''}
+\`\`\`
+
+**请严格按照以上需求分析生成代码，确保实现所有功能和符合技术规范！**
+`;
+  }
+
   const promptText = `你是一个经验丰富的前端开发工程师，请根据用户需求生成一个${frameworkLabel}组件。
 
 组件需求:
@@ -166,7 +194,7 @@ ${dimensions ? `- 尺寸要求: ${dimensions}（请严格按照此尺寸设置�
 ${uiLibraryText}${stylePreprocessorText}- ${interactive ? '需要添加完整的交互事件处理' : '不需要复杂交互'}
 - ${needMockData ? '请生成合理的默认 Mock 数据，方便直接预览，把 Mock 数据放在代码顶部方便编辑' : '不需要 Mock 数据'}
 ${extraRequirements ? `- 额外需求: ${extraRequirements}` : ''}
-
+${refinedRequirementsSection}
 重要要求（必须严格遵守）:
 
 1. **代码结构规范 - 组件化封装与文件拆分**:
@@ -373,6 +401,16 @@ ${extraRequirements ? `- 额外需求: ${extraRequirements}` : ''}
      \`\`\`
    - 确保所有导入的组件和库都能正常工作
 
+5. **⚠️ 代码完整性强制要求（非常重要）**:
+   - **必须输出完整的代码，不能截断！**
+   - **所有括号必须闭合**: ()、{}、<>
+   - **所有字符串必须闭合**: ""、''、\`\`
+   - **所有 JSX 标签必须闭合**: <div>...</div> 或 <div />
+   - **最后一行必须是完整的语句，不能以逗号、箭头、点号结尾**
+   - **必须在代码末尾添加结束标记**: // [END_OF_CODE]
+   - **如果代码较长，请精简代码但保持完整性，不要截断！**
+   - **自我检查**: 输出前检查最后一行是否完整，如果不完整请补充完整
+
 开始生成代码:`;
 
   return promptText;
@@ -414,7 +452,7 @@ async function callAI(model, prompt) {
       { role: 'user', content: prompt }
     ],
     temperature: 0.7,
-    max_tokens: 4096,
+    max_tokens: 8192,  // 增加最大输出长度,避免长代码被截断
   };
 
   console.log('调用 AI API (通过 Cloudflare Worker 代理):', {

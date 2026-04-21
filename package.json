@@ -9,6 +9,7 @@
     "dev:back": "cross-env https_proxy=http://127.0.0.1:7890 http_proxy=http://127.0.0.1:7890 node server/index.js",
     "dev:worker": "cd worker && wrangler dev",
     "dev:pages": "npx wrangler pages dev",
+    "dev:pages:watch": "cross-env https_proxy=http://127.0.0.1:7890 http_proxy=http://127.0.0.1:7890 concurrently \"vite build --watch\" \"npx wrangler pages dev --persist-to ./persist\"",
     "deploy:worker": "cd worker && wrangler deploy",
     "deploy:pages": "npx wrangler pages deploy",
     "test:worker": "node test-worker.js",

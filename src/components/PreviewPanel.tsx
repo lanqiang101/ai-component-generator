@@ -26,12 +26,47 @@ function validateCode(code: string): { valid: boolean; error?: string } {
   try {
     // 清理代码
     let cleanCode = code.trim();
-    
+
     // 检查并移除代码块标记
-    if (cleanCode.startsWith('```')) {
-      cleanCode = cleanCode.replace(/^```(?:tsx|typescript|javascript|jsx|vue|html|css|scss|less)?\s*\n?/i, '');
-      cleanCode = cleanCode.replace(/\n?```$/, '');
+    if (cleanCode.startsWith("```")) {
+      cleanCode = cleanCode.replace(
+        /^```(?:tsx|typescript|javascript|jsx|vue|html|css|scss|less)?\s*\n?/i,
+        "",
+      );
+      cleanCode = cleanCode.replace(/\n?```$/, "");
       cleanCode = cleanCode.trim();
+    }
+
+    // 检查代码是否被截断
+    // 1. 检查是否以不完整的语句结尾
+    const incompletePatterns = [
+      /\.\.\.$/, // 省略号结尾
+      /=>\s*$/, // 箭头函数未完整
+      /\(\s*$/, // 未闭合的左括号
+      /\{\s*$/, // 未闭合的左大括号
+      /<\s*$/, // 未闭合的尖括号
+      /['"`]$/, // 未闭合的引号
+      /,\s*$/, // 逗号结尾(可能是参数列表未完整)
+      /\.\w*$/, // 属性访问未完整 (如 console.log('Nav)
+    ];
+
+    const lastLine = cleanCode.split("\n").pop()?.trim() || "";
+    for (const pattern of incompletePatterns) {
+      if (pattern.test(lastLine)) {
+        return {
+          valid: false,
+          error: `代码结构不完整：最后一行 "${lastLine.substring(0, 50)}..." 似乎被截断，请重新生成`,
+        };
+      }
+    }
+
+    // 2. 检查是否存在严重的不完整语句（如未闭合的字符串）
+    const unclosedStringMatch = cleanCode.match(/['"`][^'"`]*$/);
+    if (unclosedStringMatch) {
+      return {
+        valid: false,
+        error: `代码结构不完整：发现未闭合的字符串，代码可能被截断，请重新生成`,
+      };
     }
 
     // 检查基本语法
@@ -42,41 +77,76 @@ function validateCode(code: string): { valid: boolean; error?: string } {
       cleanCode.includes("import React");
 
     if (isReactCode) {
+      // 移除字符串和注释中的内容，避免误判
+      const codeWithoutStrings = cleanCode
+        // 移除单行注释
+        .replace(/\/\/.*$/gm, "")
+        // 移除多行注释
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        // 移除模板字符串
+        .replace(/`[^`]*`/g, '""')
+        // 移除双引号字符串
+        .replace(/"[^"]*"/g, '""')
+        // 移除单引号字符串
+        .replace(/'[^']*'/g, '""');
+
       // 检查括号匹配
-      const parentheses = cleanCode.match(/[()]/g) || [];
+      const parentheses = codeWithoutStrings.match(/[()]/g) || [];
       let balance = 0;
       for (const char of parentheses) {
         if (char === "(") balance++;
         else if (char === ")") balance--;
         if (balance < 0) {
-          return { valid: false, error: "括号不匹配，请检查代码" };
+          return { valid: false, error: "括号不匹配：发现多余的右括号 ')'" };
         }
       }
-      if (balance !== 0) {
-        return { valid: false, error: `括号不匹配（差 ${Math.abs(balance)} 个括号），请检查代码` };
+      if (balance > 0) {
+        return {
+          valid: false,
+          error: `括号不匹配：缺少 ${balance} 个右括号 ')'`,
+        };
+      }
+      if (balance < 0) {
+        return {
+          valid: false,
+          error: `括号不匹配：缺少 ${Math.abs(balance)} 个左括号 '('`,
+        };
       }
 
       // 检查大括号匹配
-      const braces = cleanCode.match(/[{}]/g) || [];
+      const braces = codeWithoutStrings.match(/[{}]/g) || [];
       balance = 0;
       for (const char of braces) {
         if (char === "{") balance++;
         else if (char === "}") balance--;
         if (balance < 0) {
-          return { valid: false, error: "大括号不匹配，请检查代码" };
+          return { valid: false, error: "大括号不匹配：发现多余的右括号 '}'" };
         }
       }
-      if (balance !== 0) {
-        return { valid: false, error: `大括号不匹配（差 ${Math.abs(balance)} 个大括号），请检查代码` };
+      if (balance > 0) {
+        return {
+          valid: false,
+          error: `大括号不匹配：缺少 ${balance} 个右括号 '}'`,
+        };
+      }
+      if (balance < 0) {
+        return {
+          valid: false,
+          error: `大括号不匹配：缺少 ${Math.abs(balance)} 个左括号 '{'`,
+        };
       }
 
       // 检查尖括号匹配（JSX）- 简化检查，避免误报
-      const openTags = (cleanCode.match(/<[A-Z][a-zA-Z]*(?![^>]*\/>)(?![^>]*\/)\s*>/g) || []).length;
+      const openTags = (
+        cleanCode.match(/<[A-Z][a-zA-Z]*(?![^>]*\/>)(?![^>]*\/)\s*>/g) || []
+      ).length;
       const closeTags = (cleanCode.match(/<\/[A-Z][a-zA-Z]*>/g) || []).length;
-      
+
       // 只在不匹配时才警告
       if (openTags !== closeTags && Math.abs(openTags - closeTags) > 2) {
-        console.warn(`可能存在未闭合的 JSX 标签（开标签: ${openTags}, 闭标签: ${closeTags}）`);
+        console.warn(
+          `可能存在未闭合的 JSX 标签（开标签: ${openTags}, 闭标签: ${closeTags}）`,
+        );
       }
     }
 
@@ -101,7 +171,8 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
   const { setPreviewResolution } = useStore();
   const [error, setError] = useState<string | null>(null);
 
-  const preset = resolutionPresets[resolution];
+  // 获取分辨率预设，如果不存在则使用默认的 full
+  const preset = resolutionPresets[resolution] || resolutionPresets["full"];
 
   // 验证代码
   const validation = useMemo(() => {
@@ -147,15 +218,6 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
     // 默认打包成可以直接运行的HTML（对于React/Vue，只支持使用CDN的简单组件）
     // 如果是React组件，我们提供一个简单的渲染环境
     if (isReactCode) {
-      // 预处理代码：移除 export 语句，使其能在浏览器中直接运行
-      const processedCode = preprocessCodeForBrowser(code);
-
-      // 调试：在控制台输出预处理后的代码
-      console.log("=== 原始代码 ===");
-      console.log(code);
-      console.log("=== 预处理后的代码 ===");
-      console.log(processedCode);
-
       return `
 <!DOCTYPE html>
 <html>
@@ -170,7 +232,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
 <body class="bg-gray-50">
   <div id="root"></div>
   <script type="text/babel">
-${processedCode}
+${code}
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(<${extractComponentName(code)} />);
@@ -205,13 +267,48 @@ ${code}
 
   // 提取组件名称
   function extractComponentName(code: string): string {
-    // 优先查找 export default 的组件名
+    // 0. 如果是多文件结构，从 FILE 标记中提取主组件文件名
+    const fileRegex = /\/\/\s*======\s*FILE:\s*([^\n]+)\s*======/g;
+    const files: string[] = [];
+    let match;
+    while ((match = fileRegex.exec(code)) !== null) {
+      const fileName = match[1].trim();
+      files.push(fileName);
+    }
+
+    // 如果有多文件，尝试从主组件文件（component.tsx 或 index.tsx）提取
+    if (files.length > 1) {
+      const mainFile = files.find(
+        (f) =>
+          f.includes("component") || f.includes("index") || f.includes("App"),
+      );
+      if (mainFile) {
+        // 从文件名提取组件名（去掉扩展名，转为首字母大写）
+        const componentName = mainFile
+          .replace(/\.(tsx|ts|jsx|js)$/, "")
+          .replace(/[-_]/g, " ")
+          .split(" ")
+          .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+          .join("");
+        return componentName;
+      }
+    }
+
+    // 1. 优先查找 export default 的组件名
     const exportDefaultMatch = code.match(
       /export\s+default\s+function\s+(\w+)/,
     );
-    if (exportDefaultMatch) return exportDefaultMatch[1];
+    if (exportDefaultMatch) {
+      return exportDefaultMatch[1];
+    }
 
-    // 查找 export default 的箭头函数
+    // 2. 查找 export default 的变量名
+    const exportDefaultVarMatch = code.match(/export\s+default\s+(\w+)\s*;/);
+    if (exportDefaultVarMatch) {
+      return exportDefaultVarMatch[1];
+    }
+
+    // 3. 查找 export default 的箭头函数
     const exportDefaultArrowMatch = code.match(
       /export\s+default\s+\(\s*\)\s*=>\s*\{/,
     );
@@ -220,208 +317,37 @@ ${code}
       const componentMatch = code.match(
         /\/\/\s*主组件[：:]\s*(\w+)|\/\*\s*主组件[：:]\s*(\w+)/,
       );
-      if (componentMatch)
-        return componentMatch[1] || componentMatch[2] || "MainComponent";
-      return "MainComponent";
+      const name =
+        componentMatch?.[1] || componentMatch?.[2] || "MainComponent";
+      return name;
     }
 
-    // 尝试找 function Component
+    // 4. 尝试找 function Component (大写字母开头)
     const functionMatch = code.match(/function\s+([A-Z]\w+)/);
-    if (functionMatch) return functionMatch[1];
+    if (functionMatch) {
+      return functionMatch[1];
+    }
 
-    // 尝试找 const Component = （大写字母开头，通常是组件）
+    // 5. 尝试找 const Component = （大写字母开头，通常是组件）
     const constMatch = code.match(/const\s+([A-Z]\w+)\s*=\s*\(?[^)]*\)?\s*=>/);
-    if (constMatch) return constMatch[1];
-
-    return "Component";
-  }
-
-  // 预处理代码，使其能在浏览器中运行
-  function preprocessCodeForBrowser(code: string): string {
-    let processed = code;
-
-    // 0. 如果是多文件结构，只提取主组件文件的内容
-    const fileRegex =
-      /\/\/\s*======\s*FILE:\s*([^\n]+)\s*======([\s\S]*?)(?=\/\/\s*======\s*FILE:|$)/g;
-    const files: { name: string; content: string }[] = [];
-    let match;
-
-    while ((match = fileRegex.exec(code)) !== null) {
-      files.push({
-        name: match[1].trim(),
-        content: match[2].trim(),
-      });
+    if (constMatch) {
+      return constMatch[1];
     }
 
-    // 如果找到了多个文件，合并所有内容（子组件在前，主组件在后）
-    if (files.length > 1) {
-      // 按照文件名排序，确保子组件在前，主组件在后
-      const sortedFiles = files.sort((a, b) => {
-        // component.tsx 或 index.tsx 放在最后
-        if (a.name.includes("component") || a.name.includes("index")) return 1;
-        if (b.name.includes("component") || b.name.includes("index")) return -1;
-        return 0;
-      });
-
-      // 合并所有文件内容
-      processed = sortedFiles.map((f) => f.content).join("\n\n");
+    // 6. 尝试找 const Component = function
+    const constFunctionMatch = code.match(/const\s+([A-Z]\w+)\s*=\s*function/);
+    if (constFunctionMatch) {
+      return constFunctionMatch[1];
     }
 
-    // 1. 移除 export default
-    processed = processed.replace(/export\s+default\s+/g, "");
-
-    // 2. 移除 named exports
-    processed = processed.replace(
-      /export\s+(const|let|var|function|class|interface|type)\s+/g,
-      "$1 ",
-    );
-
-    // 3. 移除 export { ... } 语句
-    processed = processed.replace(/export\s*\{[^}]*\}\s*;?/g, "");
-
-    // 4. 处理 import 语句
-    // 4.1 提取 React Hooks (useState, useEffect 等)
-    const reactHooksMatch = processed.match(
-      /import\s+\{([^}]+)\}\s+from\s+['"]react['"]/,
-    );
-    if (reactHooksMatch) {
-      const hooks = reactHooksMatch[1].split(",").map((h) => h.trim());
-      // 将 import { useState, useEffect } from 'react' 转换为注释
-      processed = processed.replace(
-        /import\s+\{[^}]+\}\s+from\s+['"]react['"]\s*;?/g,
-        "// React import removed - using global React object",
-      );
-
-      // 将代码中的 useState, useEffect 等替换为 React.useState, React.useEffect
-      hooks.forEach((hook) => {
-        // 使用单词边界匹配，避免替换部分匹配
-        const regex = new RegExp(`\\b${hook}\\b`, "g");
-        processed = processed.replace(regex, `React.${hook}`);
-      });
+    // 7. 最后兜底：从第一个大写字母开头的标识符推断
+    const firstComponentMatch = code.match(/\b([A-Z][a-zA-Z]+)\s*[=:]/);
+    if (firstComponentMatch) {
+      return firstComponentMatch[1];
     }
 
-    // 4.2 处理 default import: import React from 'react'
-    const reactDefaultMatch = processed.match(
-      /import\s+React\s+from\s+['"]react['"]/,
-    );
-    if (reactDefaultMatch) {
-      processed = processed.replace(
-        /import\s+React\s+from\s+['"]react['"]\s*;?/g,
-        "// React import removed - using global React object",
-      );
-    }
-
-    // 4.3 处理混合 import: import React, { useState } from 'react'
-    const reactMixedMatch = processed.match(
-      /import\s+React\s*,\s*\{([^}]+)\}\s+from\s+['"]react['"]/,
-    );
-    if (reactMixedMatch) {
-      const hooks = reactMixedMatch[1].split(",").map((h) => h.trim());
-      processed = processed.replace(
-        /import\s+React\s*,\s*\{[^}]+\}\s+from\s+['"]react['"]\s*;?/g,
-        "// React import removed - using global React object",
-      );
-
-      hooks.forEach((hook) => {
-        const regex = new RegExp(`\\b${hook}\\b`, "g");
-        processed = processed.replace(regex, `React.${hook}`);
-      });
-    }
-
-    // 4.4 处理其他库的 import (如 lucide-react)
-    processed = processed.replace(
-      /import\s+.*?\s+from\s+['"][^'"]+['"]\s*;?/g,
-      "// Import removed for browser preview",
-    );
-
-    // 5. 移除 TypeScript 类型注解（使用更安全的方法）
-
-    // 5.0 移除独立的类型定义语句（如：(product: Product) => void;）
-    // 匹配模式：以 ( 或标识符开头，包含 : Type，以 ; 结尾的独立行
-    processed = processed.replace(/^\s*\([^)]*:\s*\w+\)\s*=>\s*\w+;\s*$/gm, '');
-    processed = processed.replace(/^\s*\w+\s*:\s*\w+\s*=>\s*\w+;\s*$/gm, '');
-
-    // 5.1 处理 React.FC<Props> 类型的变量声明
-    processed = processed.replace(
-      /(const|let|var)\s+(\w+)\s*:\s*React\.FC\s*<[^>]*>\s*=/g,
-      "$1 $2 =",
-    );
-
-    // 5.2 处理其他泛型类型注解的变量声明
-    processed = processed.replace(
-      /(const|let|var)\s+(\w+)\s*:\s*\w+<[^>]*>\s*=/g,
-      "$1 $2 =",
-    );
-
-    // 5.3 处理函数参数的对象解构类型注解
-    // 使用更安全的方法：先找到函数定义，然后处理其参数
-    // 匹配模式：function Name(params: Type) 或 const Name = (params: Type) =>
-    // 策略：移除函数参数列表中最后一个 : { ... } 或 : Type
-
-    // 先处理箭头函数的参数类型
-    processed = processed.replace(
-      /((?:const|let|var)\s+\w+\s*=\s*)\(([^)]*)\)\s*:\s*(?:React\.FC<[^>]*>|\{[^}]*\}|\w+(?:<[^>]*>)?)\s*=>/g,
-      "$1($2) =>",
-    );
-
-    // 处理普通函数的参数类型
-    processed = processed.replace(
-      /(function\s+\w+\s*)\(([^)]*)\)\s*:\s*(?:void|string|number|boolean|any|React\.\w+|\{[^}]*\})/g,
-      "$1($2)",
-    );
-
-    // 5.4 移除变量声明中的类型注解（更精确的匹配）
-    // 只处理明显的类型注解模式：const/let/var name: Type =
-    processed = processed.replace(
-      /(const|let|var)\s+(\w+)\s*:\s*(?:string|number|boolean|any|never|unknown|null|undefined)\s*=/g,
-      "$1 $2 =",
-    );
-
-    // 处理数组类型
-    processed = processed.replace(
-      /(const|let|var)\s+(\w+)\s*:\s*(?:\w+\[\]|\[\s*\w+\s*\])\s*=/g,
-      "$1 $2 =",
-    );
-
-    // 处理对象类型（简单对象，不包含嵌套）
-    processed = processed.replace(
-      /(const|let|var)\s+(\w+)\s*:\s*\{[^{}\n]*\}\s*=/g,
-      "$1 $2 =",
-    );
-
-    // 5.5 处理返回类型注解
-    processed = processed.replace(
-      /:\s*(?:void|string|number|boolean|any|never|unknown|React\.\w+)\s*=>/g,
-      " =>",
-    );
-    processed = processed.replace(/:\s*Promise<[^>]*>\s*=>/g, " =>");
-    processed = processed.replace(/:\s*JSX\.Element\s*=>/g, " =>");
-
-    // 5.6 移除函数参数的类型注解（通用模式）
-    // 匹配：param: Type 在括号内
-    processed = processed.replace(/(\w+)\s*:\s*\w+(?:<[^>]*>)?(\s*[),])/g, '$1$2');
-    processed = processed.replace(/(\w+)\s*:\s*\{[^}]*\}(\s*[),])/g, '$1$2');
-
-    // 6. 移除 interface 和 type 定义
-    processed = processed.replace(/interface\s+\w+\s*\{[\s\S]*?\}\s*/g, "");
-    processed = processed.replace(/type\s+\w+\s*=[\s\S]*?;?\s*/g, "");
-
-    // 7. 移除 as 类型断言
-    processed = processed.replace(/\s+as\s+\w+/g, "");
-    processed = processed.replace(/\s+as\s+\{[^}]*\}/g, "");
-    processed = processed.replace(/\s+as\s+\w+<[^>]*>/g, "");
-
-    // 8. 移除非空断言 !
-    processed = processed.replace(/!\./g, ".");
-    processed = processed.replace(/!\[/g, "[");
-
-    // 9. 移除可选链 ?. （保留，因为这是 JavaScript 特性）
-    // 不需要处理
-
-    // 10. 清理多余的空行
-    processed = processed.replace(/\n{3,}/g, "\n\n");
-
-    return processed;
+    // 8. 实在找不到，返回默认值
+    return "App";
   }
 
   // 获取分类标签
@@ -445,7 +371,7 @@ ${code}
     // 自适应模式下使用最小高度，让内容自然撑开
     height: "auto",
     minHeight: isAdaptive
-      ? "400px"  // 自适应模式下的最小高度
+      ? "400px" // 自适应模式下的最小高度
       : preset.height === "100%"
         ? "100%"
         : `${preset.height}px`,
@@ -461,32 +387,36 @@ ${code}
   }, []);
 
   // iframe 加载成功
-  const handleIframeLoad = useCallback((e: React.SyntheticEvent<HTMLIFrameElement>) => {
-    setError(null);
-    
-    // 在自适应模式下，自动调整 iframe 高度以适应内容
-    if (isAdaptive) {
-      try {
-        const iframe = e.currentTarget;
-        // 等待内容完全加载后调整高度
-        setTimeout(() => {
-          try {
-            const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
-            if (iframeDoc && iframeDoc.body) {
-              const contentHeight = iframeDoc.body.scrollHeight;
-              // 设置 iframe 高度为内容高度（加上一些padding）
-              iframe.style.height = `${contentHeight + 20}px`;
+  const handleIframeLoad = useCallback(
+    (e: React.SyntheticEvent<HTMLIFrameElement>) => {
+      setError(null);
+
+      // 在自适应模式下，自动调整 iframe 高度以适应内容
+      if (isAdaptive) {
+        try {
+          const iframe = e.currentTarget;
+          // 等待内容完全加载后调整高度
+          setTimeout(() => {
+            try {
+              const iframeDoc =
+                iframe.contentDocument || iframe.contentWindow?.document;
+              if (iframeDoc && iframeDoc.body) {
+                const contentHeight = iframeDoc.body.scrollHeight;
+                // 设置 iframe 高度为内容高度（加上一些padding）
+                iframe.style.height = `${contentHeight + 20}px`;
+              }
+            } catch (err) {
+              // 跨域限制可能导致无法访问 contentDocument，忽略错误
+              console.debug("无法调整 iframe 高度:", err);
             }
-          } catch (err) {
-            // 跨域限制可能导致无法访问 contentDocument，忽略错误
-            console.debug('无法调整 iframe 高度:', err);
-          }
-        }, 100);
-      } catch (err) {
-        console.debug('iframe 加载处理失败:', err);
+          }, 100);
+        } catch (err) {
+          console.debug("iframe 加载处理失败:", err);
+        }
       }
-    }
-  }, [isAdaptive]);
+    },
+    [isAdaptive],
+  );
 
   return (
     <div className="w-full h-full flex flex-col bg-gray-50 dark:bg-slate-900">
@@ -503,7 +433,7 @@ ${code}
             }
           >
             <Select.Trigger className="inline-flex items-center justify-between px-3 py-1.5 text-sm rounded-md border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 min-w-[180px] transition-colors duration-150">
-              <Select.Value placeholder="选择分辨率" />
+              <Select.Value placeholder="全屏自适应" />
               <Select.Icon className="ml-2">
                 <ChevronDown size={14} />
               </Select.Icon>
@@ -536,15 +466,15 @@ ${code}
                         )}
                         {getCategoryLabel(group.category)}
                       </Select.Label>
-                      {group.items.map((preset) => (
+                      {group.items.map((item) => (
                         <Select.Item
-                          key={preset.key}
-                          value={preset.key}
-                          className="relative flex items-center px-3 py-2 text-sm rounded-md cursor-pointer outline-none select-none data-[highlighted]:bg-gray-100 dark:data-[highlighted]:bg-slate-700 data-[highlighted]:text-gray-900 dark:data-[highlighted]:text-white transition-colors duration-150"
+                          key={item.key}
+                          value={item.key}
+                          className="relative flex items-center px-3 py-2 rounded-md text-sm cursor-pointer select-none outline-none data-[highlighted]:bg-blue-50 dark:data-[highlighted]:bg-blue-900/20 data-[highlighted]:text-blue-700 dark:data-[highlighted]:text-blue-300 data-[state=checked]:bg-blue-50 dark:data-[state=checked]:bg-blue-900/20 data-[state=checked]:text-blue-700 dark:data-[state=checked]:text-blue-300 transition-colors duration-150"
                         >
-                          <Select.ItemText>{preset.label}</Select.ItemText>
-                          <Select.ItemIndicator className="absolute right-2 inline-flex items-center justify-center">
-                            <Check size={16} className="text-blue-600" />
+                          <Select.ItemText>{item.label}</Select.ItemText>
+                          <Select.ItemIndicator className="absolute right-2">
+                            <Check size={14} />
                           </Select.ItemIndicator>
                         </Select.Item>
                       ))}
@@ -575,7 +505,7 @@ ${code}
                   <div className="bg-red-50 dark:bg-red-900/20 rounded-md p-3 border border-red-100 dark:border-red-800">
                     <p className="text-xs text-red-600 dark:text-red-400">
                       <strong>提示：</strong>
-                      请检查左侧代码编辑器中的代码，修复语法错误后自动重新预览
+                      请检查下方代码编辑器中的代码，修复语法错误后自动重新预览
                     </p>
                   </div>
                 </div>
@@ -598,16 +528,15 @@ ${code}
                 </p>
               </div>
             ) : (
-              iframeHtml && (
-                <iframe
-                  srcDoc={iframeHtml}
-                  title="component-preview"
-                  className="w-full border-0 rounded-lg bg-white"
-                  style={{ minHeight: "inherit" }}
-                  onError={handleIframeError}
-                  onLoad={handleIframeLoad}
-                />
-              )
+              <iframe
+                id="preview-iframe"
+                srcDoc={iframeHtml || ""}
+                title="component-preview"
+                className="w-full border-0 rounded-lg bg-white"
+                style={{ minHeight: "inherit" }}
+                onError={handleIframeError}
+                onLoad={handleIframeLoad}
+              />
             )}
           </div>
         )}
