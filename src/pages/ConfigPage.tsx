@@ -6,11 +6,10 @@ import { useStore } from '../store/useStore';
 import { Button } from '../components/ui/Button';
 import { Label } from '../components/ui/Label';
 import { Card, CardContent } from '../components/ui/Card';
-import type { ModelConfig } from '../types';
 
 export const ConfigPage: React.FC = () => {
   const navigate = useNavigate();
-  const { models, systemConfig, saveSystemConfig } = useStore();
+  const { models } = useStore();
   const [loading, setLoading] = useState(false);
   const [componentGenerationModelId, setComponentGenerationModelId] = useState<number | null>(null);
 

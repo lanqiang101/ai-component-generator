@@ -4,7 +4,6 @@ import { useStore } from '../store/useStore';
 import { Label } from './ui/Label';
 import { Input } from './ui/Input';
 import { Textarea } from './ui/Textarea';
-import { Button } from './ui/Button';
 import { Switch } from '@radix-ui/react-switch';
 import { Sparkles, Loader2 } from 'lucide-react';
 import { getUILibrariesForFramework, getVersionsForUILibrary } from '../constants/ui-libraries';

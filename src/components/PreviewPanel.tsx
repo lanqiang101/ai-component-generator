@@ -671,27 +671,27 @@ root.render(<${componentName} />);
                     {resolutionListGrouped.map((group) => (
                       <Select.Group key={group.category}>
                         <Select.Label className="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center">
-                          {group.category === "mobile" && (
+                          {group.category === "phones" && (
                             <Smartphone className="w-4 h-4 mr-2" />
                           )}
-                          {group.category === "tablet" && (
+                          {group.category === "tablets" && (
                             <Tablet className="w-4 h-4 mr-2" />
                           )}
-                          {group.category === "desktop" && (
+                          {group.category === "computers" && (
                             <Monitor className="w-4 h-4 mr-2" />
                           )}
-                          {group.category === "tv" && (
+                          {group.category === "displays" && (
                             <Tv className="w-4 h-4 mr-2" />
                           )}
-                          {group.category === "laptop" && (
+                          {group.category === "standard" && (
                             <Laptop className="w-4 h-4 mr-2" />
                           )}
                           {getCategoryLabel(group.category)}
                         </Select.Label>
                         {group.items.map((item) => (
                           <Select.Item
-                            key={item.id}
-                            value={item.id}
+                            key={item.key}
+                            value={item.key}
                             className="relative flex items-center px-3 py-2 rounded-md text-sm cursor-pointer select-none outline-none data-[highlighted]:bg-blue-50 dark:data-[highlighted]:bg-blue-900/20 data-[highlighted]:text-blue-700 dark:data-[highlighted]:text-blue-300 data-[state=checked]:bg-blue-50 dark:data-[state=checked]:bg-blue-900/20 data-[state=checked]:text-blue-700 dark:data-[state=checked]:text-blue-300 transition-colors duration-150"
                           >
                             <Select.ItemText>{item.label}</Select.ItemText>

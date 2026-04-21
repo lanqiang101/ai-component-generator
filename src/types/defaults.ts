@@ -1,7 +1,8 @@
 
-import type { ComponentGenerationParams } from '../index';
+import type { ComponentGenerationParams } from './index';
 
 export const defaultComponentParams: ComponentGenerationParams = {
+
   componentName: '',
   description: '',
   framework: 'react-tsx',

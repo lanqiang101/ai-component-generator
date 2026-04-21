@@ -143,7 +143,7 @@ const MermaidDiagram: React.FC<{ chart: string; title?: string }> = ({ chart, ti
     // 匹配模式: NodeId[Label with special chars] 或 NodeId("Label")
     sanitized = sanitized.replace(
       /(\w+)\[(.*?)\]/g,
-      (match, nodeId, label) => {
+      (_match, nodeId, label) => {
         // 转义方括号内的特殊字符
         const escapedLabel = label
           .replace(/"/g, '\\"')  // 转义双引号
@@ -158,7 +158,7 @@ const MermaidDiagram: React.FC<{ chart: string; title?: string }> = ({ chart, ti
     // 处理圆括号形式的节点: NodeId("Label")
     sanitized = sanitized.replace(
       /(\w+)\("(.*?)"\)/g,
-      (match, nodeId, label) => {
+      (_match, nodeId, label) => {
         const escapedLabel = label
           .replace(/"/g, '\\"')
           .replace(/\(/g, '\\(')

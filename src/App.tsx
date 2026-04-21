@@ -2,18 +2,14 @@ import { useEffect } from "react";
 import {
   createBrowserRouter,
   RouterProvider,
-  useLocation,
 } from "react-router-dom";
 import { HomePage } from "./pages/HomePage";
-import { ConfigPage } from "./pages/ConfigPage";
-import { ModelManagementPage } from "./pages/ModelManagementPage";
 import { useStore } from "./store/useStore";
 import { PenTool, Moon, Sun, Monitor } from "lucide-react";
 import { Tooltip } from "./components/ui/Tooltip";
 
 function Layout() {
   const { darkMode, toggleDarkMode, loadModels, loadSystemConfig } = useStore();
-  const location = useLocation();
 
   // 加载数据
   useEffect(() => {

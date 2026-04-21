@@ -100,7 +100,7 @@ export const useStore = create<AppState>((set, get) => ({
   },
   setGeneration: (state) => {
     set((prev) => ({
-      generation: { ...prev.generation, ...state },
+      generation: { ...prev.generation, ...state } as typeof prev.generation,
     }));
   },
 
