@@ -463,6 +463,20 @@ ${code}
       "$1($2)",
     );
 
+    // ⚠️ 新增: 处理多行的对象类型注解（如 Props 接口）
+    // 匹配模式: function Name({ param1, param2 }: {\n  param1: Type;\n  param2: Type;\n})
+    // 策略: 移除整个 : { ... } 部分
+    processed = processed.replace(
+      /(function\s+\w+\s*\(\{[^}]*\}\s*)\s*:\s*\{[\s\S]*?\}\s*\)/g,
+      "$1)"
+    );
+    
+    // 处理箭头函数的多行对象类型
+    processed = processed.replace(
+      /((?:const|let|var)\s+\w+\s*=\s*\(\{[^}]*\}\s*)\s*:\s*\{[\s\S]*?\}\s*\)\s*=>/g,
+      "$1) =>"
+    );
+
     // 5.4 移除变量声明中的类型注解（更精确的匹配）
     // 只处理明显的类型注解模式：const/let/var name: Type =
     processed = processed.replace(

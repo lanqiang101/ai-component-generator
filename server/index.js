@@ -241,15 +241,47 @@ async function executeMultiFileGeneration(taskId) {
   // 如果是单文件模式,直接使用原有逻辑
   if (architecture.generationMode === 'single-file') {
     task.status = 'generating';
-    const prompt = buildPrompt(params);
-    const code = await callAI(null, prompt);
+    
+    // 添加重试机制
+    let code = null;
+    let validation = null;
+    let currentPrompt = buildPrompt(params);
+    const maxRetries = 2;
+    
+    for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
+      code = await callAI(null, currentPrompt);
+      code = cleanGeneratedCode(code);
+      
+      // 验证代码完整性
+      validation = validateCodeCompleteness(code);
+      
+      if (validation.valid) {
+        console.log('✅ 代码完整性验证通过');
+        break;
+      } else {
+        console.warn(`⚠️ 第 ${attempt} 次尝试代码不完整:`, validation.issues.join(', '));
+        
+        if (attempt <= maxRetries) {
+          console.log(`🔄 尝试重新生成 (${attempt}/${maxRetries})...`);
+          // 在 prompt 中强调完整性要求
+          currentPrompt += '\n\n⚠️ 上次生成的代码不完整，请确保：\n' +
+                    '- 所有括号正确闭合\n' +
+                    '- 所有字符串完整\n' +
+                    '- 最后一行是完整语句\n' +
+                    '- 末尾添加 // [FILE_END] 标记';
+        } else {
+          console.warn('❌ 达到最大重试次数，使用当前代码');
+        }
+      }
+    }
     
     task.files = [{
       path: 'index.tsx',
       name: 'index.tsx',
-      code: cleanGeneratedCode(code),
+      code: code,
       status: 'completed',
-      generatedAt: new Date()
+      generatedAt: new Date(),
+      validation: validation
     }];
     
     task.status = 'completed';
@@ -269,15 +301,24 @@ async function executeMultiFileGeneration(taskId) {
       updateTaskProgress(taskId, 'generating', util.filePath);
       
       const prompt = buildUtilityFunctionPrompt(util, params, task.files);
-      const code = await callAI(null, prompt);
+      let code = await callAI(null, prompt);
+      code = cleanGeneratedCode(code);
+      
+      // 验证代码完整性
+      const validation = validateCodeCompleteness(code);
       
       saveTaskFile(taskId, {
         path: util.filePath,
         name: util.filePath.split('/').pop(),
-        code: cleanGeneratedCode(code),
-        status: 'completed',
-        generatedAt: new Date()
+        code: code,
+        status: validation.valid ? 'completed' : 'warning',
+        generatedAt: new Date(),
+        validation: validation
       });
+      
+      if (!validation.valid) {
+        console.warn(`⚠️ 工具函数 ${util.filePath} 代码不完整:`, validation.issues.join(', '));
+      }
       
       updateTaskProgress(taskId, 'completed', util.filePath);
     }
@@ -292,15 +333,24 @@ async function executeMultiFileGeneration(taskId) {
       updateTaskProgress(taskId, 'generating', component.filePath);
       
       const prompt = buildSubComponentPrompt(component, params, task.files);
-      const code = await callAI(null, prompt);
+      let code = await callAI(null, prompt);
+      code = cleanGeneratedCode(code);
+      
+      // 验证代码完整性
+      const validation = validateCodeCompleteness(code);
       
       saveTaskFile(taskId, {
         path: component.filePath,
         name: component.filePath.split('/').pop(),
-        code: cleanGeneratedCode(code),
-        status: 'completed',
-        generatedAt: new Date()
+        code: code,
+        status: validation.valid ? 'completed' : 'warning',
+        generatedAt: new Date(),
+        validation: validation
       });
+      
+      if (!validation.valid) {
+        console.warn(`⚠️ 子组件 ${component.filePath} 代码不完整:`, validation.issues.join(', '));
+      }
       
       updateTaskProgress(taskId, 'completed', component.filePath);
     }
@@ -311,15 +361,24 @@ async function executeMultiFileGeneration(taskId) {
     updateTaskProgress(taskId, 'generating', architecture.mainComponent.filePath);
     
     const prompt = buildMainComponentPrompt(architecture, params, task.files);
-    const code = await callAI(null, prompt);
+    let code = await callAI(null, prompt);
+    code = cleanGeneratedCode(code);
+    
+    // 验证代码完整性
+    const validation = validateCodeCompleteness(code);
     
     saveTaskFile(taskId, {
       path: architecture.mainComponent.filePath,
       name: 'index.tsx',
-      code: cleanGeneratedCode(code),
-      status: 'completed',
-      generatedAt: new Date()
+      code: code,
+      status: validation.valid ? 'completed' : 'warning',
+      generatedAt: new Date(),
+      validation: validation
     });
+    
+    if (!validation.valid) {
+      console.warn(`⚠️ 主组件代码不完整:`, validation.issues.join(', '));
+    }
     
     updateTaskProgress(taskId, 'completed', architecture.mainComponent.filePath);
   }
@@ -364,6 +423,29 @@ function cleanGeneratedCode(code) {
   // 移除结束标记
   cleaned = cleaned.replace(/\n?\/\/ \[FILE_END\]$/, '');
   cleaned = cleaned.replace(/\n?\/\/ \[END_OF_CODE\]$/, '');
+  
+  // ⚠️ 自动修复条件样式语法错误（新增）
+  
+  // 修复 1: 不完整的三元表达式 ...(condition ? value) → ...(condition ? value : {})
+  // 匹配: ...(isInStock ? styles.hidden) 或 ...(isLoading ? styles.inStockColor.outOfStockColor)
+  cleaned = cleaned.replace(
+    /\.\.\.\s*\(\s*(\w+)\s*\?\s*([\w.]+)\s*\)/g,
+    '...($1 ? $2 : {})'
+  );
+  
+  // 修复 2: 嵌套属性访问的完整三元表达式 ...(condition ? styles.a.b : styles.c.d)
+  // 简化为: ...(condition ? styles.a : styles.c)
+  cleaned = cleaned.replace(
+    /\.\.\.\s*\(\s*(\w+)\s*\?\s*styles\.(\w+)\.(\w+)\s*:\s*styles\.(\w+)\.(\w+)\s*\)/g,
+    '...($1 ? styles.$2 : styles.$4)'
+  );
+  
+  // 修复 3: 嵌套属性访问的不完整三元表达式 ...(condition ? styles.a.b)
+  // 简化为: ...(condition ? styles.a : {})
+  cleaned = cleaned.replace(
+    /\.\.\.\s*\(\s*(\w+)\s*\?\s*styles\.(\w+)\.(\w+)\s*\)/g,
+    '...($1 ? styles.$2 : {})'
+  );
   
   return cleaned.trim();
 }
@@ -486,27 +568,21 @@ function buildPrompt(params) {
   } = params;
 
   let frameworkLabel = '';
-  let fileExtension = '';
   switch (framework) {
     case 'react-tsx':
       frameworkLabel = 'React 18 + TypeScript TSX';
-      fileExtension = 'tsx';
       break;
     case 'react-jsx':
       frameworkLabel = 'React 18 JavaScript JSX';
-      fileExtension = 'jsx';
       break;
     case 'vue3-sfc':
       frameworkLabel = 'Vue 3 Single-File Component (.vue) TypeScript';
-      fileExtension = 'vue';
       break;
     case 'vue3-js':
       frameworkLabel = 'Vue 3 Single-File Component (.vue) JavaScript';
-      fileExtension = 'vue';
       break;
     case 'html-css-js':
       frameworkLabel = '纯 HTML + CSS + JavaScript (不需要构建工具)';
-      fileExtension = 'html';
       break;
   }
 
@@ -556,7 +632,7 @@ function buildPrompt(params) {
   // 构建需求分析部分（如果有）
   let refinedRequirementsSection = '';
   if (refinedRequirements) {
-    refinedRequirementsSection = `
+    refinedRequirementsSection = ```
 
 ## 📋 详细需求分析（重要参考！）
 
@@ -1014,181 +1090,610 @@ function buildExpandPrompt(description, componentName) {
 
 // ====== 多文件生成的 Prompt 构建函数 ======
 
-// 1. 架构分析 Prompt
+// 1. 架构分析 Prompt (优化版)
 function buildArchitectureAnalysisPrompt(params) {
-  const { componentName, description } = params;
+  const { componentName, description, componentType } = params;
   
-  return `请分析以下组件需求，设计合理的组件架构：
+  return `# 组件架构分析任务
 
-组件名称: ${componentName}
-描述: ${description}
+请深入分析以下组件需求，设计合理的组件架构和文件结构。
 
-请判断这是一个简单组件还是复杂组件，并设计文件结构。
+## 组件信息
+- **名称**: ${componentName}
+- **类型**: ${componentType || '通用组件'}
+- **描述**: ${description}
 
-## 判断标准
-- **简单组件** (<100行): 功能单一，无需拆分，如按钮、标签、徽章
-- **中等组件** (100-200行): 有一定复杂度，可拆分为2-3个子组件，如卡片、表单
-- **复杂组件** (>200行): 功能丰富，需要多个子组件协作，如数据表格、仪表盘
+## 复杂度评估标准
 
-## 输出格式（JSON）
+### 🟢 简单组件 (single-file, <100行)
+**特征**:
+- 功能单一，无复杂交互
+- 无需内部状态管理或仅有简单状态
+- 不涉及数据转换或业务逻辑
+- 示例: Button, Badge, Icon, Label
 
-如果判断为**简单组件**，返回：
-\`\`\`json
+**文件结构**: 
+\`\`\`
+index.tsx (主组件，包含所有逻辑)
+\`\`\`
+
+### 🟡 中等组件 (multi-file, 100-250行)
+**特征**:
+- 包含2-3个可复用的UI片段
+- 需要简单的工具函数（格式化、验证等）
+- 有明确的状态管理需求
+- 示例: Card, FormInput, Dropdown
+
+**文件结构**:
+\`\`\`
+index.tsx (主组件)
+components/ChildComponent1.tsx (子组件1)
+utils/helper.ts (工具函数，可选)
+\`\`\`
+
+### 🔴 复杂组件 (multi-file, >250行)
+**特征**:
+- 包含4+个独立的功能模块
+- 需要多个工具函数和辅助方法
+- 复杂的状态管理和数据流
+- 示例: DataTable, Dashboard, WizardForm
+
+**文件结构**:
+\`\`\`
+index.tsx (主组件)
+components/Header.tsx
+components/Body.tsx
+components/Footer.tsx
+utils/formatters.ts
+utils/validators.ts
+\`\`\`
+
+## 输出格式（严格 JSON）
+
+### 简单组件示例：
 {
   "componentName": "${componentName}",
-  "description": "组件描述",
+  "description": "简洁的组件描述",
+  "complexity": "simple",
+  "generationMode": "single-file",
   "estimatedTotalLines": 80,
   "subComponents": [],
   "utilityFunctions": [],
-  "mainComponent": null
+  "mainComponent": {
+    "filePath": "index.tsx",
+    "dependencies": [],
+    "estimatedLines": 80
+  }
 }
-\`\`\`
 
-如果判断为**复杂组件**，返回：
-\`\`\`json
+### 复杂组件示例：
 {
   "componentName": "${componentName}",
-  "description": "组件描述",
-  "estimatedTotalLines": 250,
+  "description": "详细的组件描述",
+  "complexity": "medium",
+  "generationMode": "multi-file",
+  "estimatedTotalLines": 220,
   "subComponents": [
     {
       "id": "comp1",
-      "name": "ComponentName1",
-      "filePath": "components/ComponentName1.tsx",
-      "purpose": "职责描述",
-      "props": ["prop1", "prop2"],
-      "estimatedLines": 60,
+      "name": "ProductImage",
+      "filePath": "components/ProductImage.tsx",
+      "purpose": "展示商品图片，支持懒加载和错误处理",
+      "props": ["src", "alt", "fallbackSrc"],
+      "estimatedLines": 50,
       "priority": 1
+    },
+    {
+      "id": "comp2",
+      "name": "ProductInfo",
+      "filePath": "components/ProductInfo.tsx",
+      "purpose": "展示商品标题、价格、描述等信息",
+      "props": ["title", "price", "description", "stock"],
+      "estimatedLines": 70,
+      "priority": 2
     }
   ],
   "utilityFunctions": [
     {
       "name": "formatPrice",
       "filePath": "utils/formatters.ts",
-      "purpose": "格式化价格",
-      "exports": ["formatPrice"]
+      "purpose": "将数字格式化为货币字符串",
+      "exports": ["formatPrice"],
+      "estimatedLines": 15
     }
   ],
   "mainComponent": {
     "filePath": "index.tsx",
-    "dependencies": ["ComponentName1", "ComponentName2"],
+    "dependencies": ["ProductImage", "ProductInfo"],
     "estimatedLines": 80
   }
 }
-\`\`\`
 
-## 要求
-1. 子组件数量不超过 6 个
-2. 每个子组件职责单一，不超过 80 行
-3. 工具函数放在 utils/ 目录
-4. 主组件负责组合和状态管理
+## 关键要求
 
-请直接输出 JSON，不要包含其他文字。`;
+1. **子组件拆分原则**:
+   - 每个子组件职责单一，遵循单一职责原则
+   - 子组件之间低耦合，高内聚
+   - 避免过度拆分（不超过6个子组件）
+   - 子组件代码行数控制在 40-80 行
+
+2. **工具函数提取原则**:
+   - 纯函数，无副作用
+   - 可复用性强
+   - 放在 utils/ 目录
+   - 每个文件不超过 30 行
+
+3. **命名规范**:
+   - 组件名使用 PascalCase
+   - 文件路径使用 kebab-case 或 camelCase
+   - 工具函数使用 camelCase
+
+4. **依赖关系**:
+   - 主组件依赖所有子组件
+   - 子组件可以依赖工具函数
+   - 避免循环依赖
+
+## 输出要求
+- **只输出 JSON**，不要包含 Markdown 代码块标记
+- **不要添加任何解释性文字**
+- **确保 JSON 格式正确**，可以被 JSON.parse() 解析
+- **estimatedTotalLines** 必须准确反映总行数`;
 }
 
-// 2. 工具函数生成 Prompt
+// 2. 工具函数生成 Prompt (优化版)
 function buildUtilityFunctionPrompt(utilDesign, params, generatedFiles) {
   const context = generatedFiles.length > 0 
-    ? `\n【已生成文件】\n${generatedFiles.map(f => `- ${f.path}: ${f.name}`).join('\n')}`
+    ? `\n\n【已生成文件】\n${generatedFiles.map(f => `- ${f.path}: ${extractExportsSummary(f.code)}`).join('\n')}`
     : '';
   
-  return `请生成以下工具函数文件：
+  return `# 工具函数生成任务
 
-【项目背景】
-正在生成 ${params.componentName} 组件。${context}
+请生成纯 JavaScript 工具函数文件，确保代码简洁、可复用。
 
-【当前文件】
-文件路径: ${utilDesign.filePath}
-用途: ${utilDesign.purpose}
-导出函数: ${utilDesign.exports.join(', ')}
+## 项目上下文
+- **主组件**: ${params.componentName}
+- **描述**: ${params.description}${context}
 
-【要求】
-1. 只生成这个文件的代码
-2. 不要 import React
-3. 使用纯 JavaScript
-4. 导出所有函数
-5. 代码不超过 40 行
-6. 最后一行添加: // [FILE_END]
+## 当前文件信息
+- **文件路径**: ${utilDesign.filePath}
+- **用途说明**: ${utilDesign.purpose}
+- **导出函数**: ${utilDesign.exports.join(', ')}
+- **预估行数**: ${utilDesign.estimatedLines || 20} 行
 
-开始生成:`;
+## 代码规范要求
+
+### 1. 禁止导入 React
+\`\`\`javascript
+// ❌ 错误：不要导入 React
+// import React from 'react';
+
+// ✅ 正确：纯 JavaScript 函数
+export function formatPrice(price) {
+  return \`¥\${price.toFixed(2)}\`;
+}
+\`\`\`
+
+### 2. 函数定义规范
+\`\`\`javascript
+/**
+ * 格式化价格为货币字符串
+ * @param {number} price - 价格数值
+ * @param {string} currency - 货币符号（可选，默认 ¥）
+ * @returns {string} 格式化后的价格字符串
+ */
+export function formatPrice(price, currency = '¥') {
+  if (typeof price !== 'number' || isNaN(price)) {
+    return \`\${currency}0.00\`;
+  }
+  return \`\${currency}\${price.toFixed(2)}\`;
+}
+\`\`\`
+
+### 3. 命名规范
+- 函数名使用 camelCase
+- 参数名清晰明了
+- 添加 JSDoc 注释
+
+### 4. 错误处理
+\`\`\`javascript
+// ✅ 包含基本的类型检查和边界处理
+export function formatDate(date) {
+  if (!date || !(date instanceof Date)) {
+    return '';
+  }
+  return date.toISOString().split('T')[0];
+}
+\`\`\`
+
+### 5. 导出方式
+\`\`\`javascript
+// ✅ 使用命名导出
+export function func1() { }
+export function func2() { }
+
+// ❌ 不要使用 default export
+// export default { func1, func2 };
+\`\`\`
+
+## 输出示例
+
+\`\`\`javascript
+/**
+ * 格式化价格为货币字符串
+ * @param {number} price - 价格
+ * @param {string} symbol - 货币符号
+ * @returns {string}
+ */
+export function formatPrice(price, symbol = '¥') {
+  if (typeof price !== 'number') {
+    return \`\${symbol}0.00\`;
+  }
+  return \`\${symbol}\${price.toFixed(2)}\`;
 }
 
-// 3. 子组件生成 Prompt
+/**
+ * 截断文本到指定长度
+ * @param {string} text - 原始文本
+ * @param {number} maxLength - 最大长度
+ * @returns {string}
+ */
+export function truncateText(text, maxLength = 50) {
+  if (!text || text.length <= maxLength) {
+    return text;
+  }
+  return text.slice(0, maxLength) + '...';
+}
+
+// [FILE_END]
+\`\`\`
+
+## 开始生成
+请生成完整的 ${utilDesign.filePath} 文件，确保：
+1. 只包含纯 JavaScript 函数
+2. 每个函数都有 JSDoc 注释
+3. 包含基本的错误处理
+4. 代码不超过 ${utilDesign.estimatedLines || 30} 行
+5. 最后一行添加 \`// [FILE_END]\` 标记`;
+}
+
+// 3. 子组件生成 Prompt (优化版)
 function buildSubComponentPrompt(componentDesign, params, generatedFiles) {
   const context = generatedFiles.length > 0
-    ? `\n【已生成文件】\n${generatedFiles.map(f => `- ${f.path}: 包含 ${extractExportsSummary(f.code)}`).join('\n')}`
+    ? `\n\n【已生成文件清单】\n${generatedFiles.map(f => `- ${f.path}: ${extractExportsSummary(f.code)}`).join('\n')}`
     : '';
   
-  return `请生成以下子组件：
+  return `# 子组件生成任务
 
-【项目背景】
-${params.componentName} 组件的${componentDesign.purpose}部分。${context}
+请生成以下子组件，确保代码质量和完整性。
 
-【当前文件】
-文件路径: ${componentDesign.filePath}
-组件名: ${componentDesign.name}
-职责: ${componentDesign.purpose}
-Props: 
-${componentDesign.props.map(prop => `  - ${prop}`).join('\n')}
+## 项目上下文
+- **主组件**: ${params.componentName}
+- **组件描述**: ${params.description}${context}
 
-【要求】
-1. 可以导入已生成的工具函数或组件
-2. 使用 React.useState 管理内部状态（如果需要）
-3. 代码不超过 ${componentDesign.estimatedLines} 行
-4. export default ${componentDesign.name}
-5. 最后一行添加: // [FILE_END]
+## 当前文件信息
+- **文件路径**: ${componentDesign.filePath}
+- **组件名称**: ${componentDesign.name}
+- **核心职责**: ${componentDesign.purpose}
+- **接收 Props**: 
+${componentDesign.props.map(prop => `  - \`${prop}\``).join('\n')}
+- **预估行数**: ${componentDesign.estimatedLines} 行
 
-开始生成:`;
+## 代码规范要求
+
+### 1. 导入语句
+\`\`\`javascript
+// ✅ 可以导入已生成的工具函数或子组件
+import { formatPrice } from '../utils/formatters';
+import ProductImage from './ProductImage';
+
+// ❌ 不要导入 React（使用全局 React 对象）
+// import React from 'react';
+\`\`\`
+
+### 2. 状态管理
+\`\`\`javascript
+// ✅ 使用 React.useState
+const [isOpen, setIsOpen] = React.useState(false);
+
+// ✅ 使用 React.useEffect
+React.useEffect(() => {
+  // 副作用逻辑
+}, [dependency]);
+\`\`\`
+
+### 3. Props 定义
+\`\`\`javascript
+/**
+ * @param {string} title - 商品标题
+ * @param {number} price - 商品价格
+ * @param {boolean} inStock - 是否有库存
+ */
+export default function ProductInfo({ title, price, inStock }) {
+  // 组件逻辑
+}
+\`\`\`
+
+### 4. 样式处理
+\`\`\`javascript
+// ✅ 使用内联 style 对象
+const styles = {
+  container: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px'
+  }
+};
+
+return <div style={styles.container}>...</div>;
+\`\`\`
+
+**⚠️ 条件样式的正确写法（严格遵守）**:
+
+\`\`\`javascript
+// ❌ 绝对禁止的写法 1：三元表达式缺少 else 分支
+style={{
+  ...styles.buttonBase,
+  ...(isDisabled ? styles.disabled),  // ← 语法错误！缺少冒号和 else
+}}
+
+// ❌ 绝对禁止的写法 2：错误的嵌套属性访问
+style={{
+  ...styles.stockStatus,
+  ...(isInStock ? styles.a.b : styles.c.d),  // ← 语法错误！
+}}
+
+// ✅ 正确方式 1：三元表达式必须有完整的 if-else（推荐用于二选一）
+style={{
+  ...styles.base,
+  ...(isActive ? styles.active : styles.inactive),  // ← 必须有两个值
+}}
+
+// ✅ 正确方式 2：使用逻辑与 &&（推荐用于有条件地添加）
+style={{
+  ...styles.base,
+  ...(isDisabled && styles.disabled),  // ← 简洁安全
+}}
+
+// ✅ 正确方式 3：直接在 style 属性上使用三元表达式
+style={isDisabled ? styles.disabled : styles.base}
+
+// ✅ 正确方式 4：提取为变量
+const statusStyle = isInStock ? styles.inStock : styles.outOfStock;
+<span style={{ ...styles.stockStatus, ...statusStyle }}>
+\`\`\`
+
+**🚨 关键规则（必须遵守）**:
+1. **三元表达式必须完整**: \`condition ? value1 : value2\` - **绝不能省略 \`: value2\`**
+2. **禁止嵌套属性链式访问**: 不要用 \`styles.a.b.c\`,使用 \`styles.a\` 或 \`styles.b\`
+3. **展开运算符后必须是完整表达式**: \`...(expr)\` 中的 expr 必须能独立求值
+4. **优先使用逻辑与 &&**: 比三元表达式更简洁、更安全
+
+### 5. 代码完整性要求
+- ✅ **所有括号必须闭合**: (), {}, <>
+- ✅ **所有字符串必须闭合**: "", '', \`\`
+- ✅ **所有 JSX 标签必须闭合**: <div>...</div> 或 <div />
+- ✅ **最后一行必须是完整语句**
+- ✅ **必须在末尾添加标记**: \`// [FILE_END]\`
+
+## 输出示例
+
+\`\`\`javascript
+import { formatPrice } from '../utils/formatters';
+
+/**
+ * 商品信息展示组件
+ * @param {Object} props - 组件属性
+ * @param {string} props.title - 商品标题
+ * @param {number} props.price - 商品价格
+ */
+export default function ProductInfo({ title, price }) {
+  const [isExpanded, setIsExpanded] = React.useState(false);
+
+  const handleToggle = () => {
+    setIsExpanded(!isExpanded);
+  };
+
+  return (
+    <div style={{ padding: '16px' }}>
+      <h3 style={{ fontSize: '18px', fontWeight: 'bold' }}>{title}</h3>
+      <p style={{ color: '#e53e3e', fontSize: '20px' }}>
+        {formatPrice(price)}
+      </p>
+      {isExpanded && (
+        <button onClick={handleToggle}>收起</button>
+      )}
+    </div>
+  );
 }
 
-// 4. 主组件生成 Prompt
+// [FILE_END]
+\`\`\`
+
+## 开始生成
+请生成完整的 ${componentDesign.name} 组件代码，确保：
+1. 代码不超过 ${componentDesign.estimatedLines} 行
+2. 严格遵循上述规范
+3. 最后一行添加 \`// [FILE_END]\` 标记`;
+}
+
+// 4. 主组件生成 Prompt (优化版)
 function buildMainComponentPrompt(architecture, _params, _generatedFiles) {
   const subComponentsList = architecture.subComponents?.map(c => 
-    `- ${c.filePath}: export default ${c.name}`
+    `- **${c.filePath}**: export default ${c.name} (${c.purpose})`
   ).join('\n') || '无';
   
   const utilsList = architecture.utilityFunctions?.map(u =>
-    `- ${u.filePath}: 导出 ${u.exports.join(', ')}`
+    `- **${u.filePath}**: 导出 ${u.exports.join(', ')} (${u.purpose})`
   ).join('\n') || '无';
   
-  return `请生成主组件入口文件：
+  const importStatements = [
+    ...(architecture.subComponents?.map(c => `import ${c.name} from './${c.filePath.replace('.tsx', '')}';`) || []),
+    ...(architecture.utilityFunctions?.map(u => `import { ${u.exports.join(', ')} } from './${u.filePath.replace('.ts', '')}';`) || [])
+  ].join('\n');
+  
+  return `# 主组件生成任务
 
-【项目背景】
-${architecture.componentName} 是完整的${architecture.description}组件。
+请生成主组件入口文件，负责组合所有子组件并管理整体状态。
 
-【已生成文件】
-子组件:
+## 项目信息
+- **组件名称**: ${architecture.componentName}
+- **组件描述**: ${architecture.description}
+- **复杂度**: ${architecture.complexity}
+- **预估总行数**: ${architecture.estimatedTotalLines} 行
+
+## 已生成文件清单
+
+### 子组件
 ${subComponentsList}
 
-工具函数:
+### 工具函数
 ${utilsList}
 
-【当前文件】
-文件路径: index.tsx
-组件名: ${architecture.componentName}
-职责: 组合所有子组件，管理整体状态和数据流
+## 当前文件要求
+- **文件路径**: index.tsx
+- **组件名称**: ${architecture.componentName}
+- **核心职责**: 
+  1. 导入并组合所有子组件
+  2. 管理全局状态和数据流
+  3. 处理用户交互和业务逻辑
+  4. 向子组件传递 Props
 
-【Mock 数据】
-请在代码顶部定义 mockData 对象，包含组件所需的所有字段。
+## Mock 数据定义
 
-【要求】
-1. 导入所有子组件和工具函数：
-${architecture.subComponents?.map(c => `   import ${c.name} from './${c.filePath}';`).join('\n')}
-${architecture.utilityFunctions?.map(u => `   import { ${u.exports.join(', ')} } from './${u.filePath}';`).join('\n')}
+请在代码顶部定义 \`mockData\` 对象，包含：
+- 组件所需的所有字段
+- 合理的数据类型和默认值
+- 至少 2-3 条示例数据（如果是列表）
 
-2. 使用 React.useState 管理状态
+示例：
+\`\`\`javascript
+const mockData = {
+  title: '商品标题',
+  price: 99.99,
+  description: '商品描述',
+  inStock: true,
+  images: ['image1.jpg', 'image2.jpg']
+};
+\`\`\`
 
-3. Props 接口使用 JSDoc 注释
+## 代码结构模板
 
-4. 默认使用 mockData
+\`\`\`javascript
+// ====== 导入语句 ======
+${importStatements || '// 无需额外导入'}
 
-5. export default ${architecture.componentName}
+// ====== Mock 数据 ======
+const mockData = {
+  // 在此定义 mock 数据
+};
 
-6. 代码不超过 ${architecture.mainComponent?.estimatedLines || 100} 行
+// ====== 主组件 ======
+/**
+ * ${architecture.componentName} 组件
+ * @description ${architecture.description}
+ */
+export default function ${architecture.componentName}(props) {
+  // 1. 解构 Props（使用默认值）
+  const {
+    // props 列表
+  } = props || {};
 
-7. 最后一行添加: // [FILE_END]
+  // 2. 状态声明
+  const [state1, setState1] = React.useState(mockData.field1);
+  const [state2, setState2] = React.useState(false);
 
-开始生成:`;
+  // 3. 副作用
+  React.useEffect(() => {
+    // 初始化逻辑
+  }, []);
+
+  // 4. 事件处理器
+  const handleAction = () => {
+    // 业务逻辑
+  };
+
+  // 5. 渲染
+  return (
+    <div style={{ /* 容器样式 */ }}>
+      {/* 使用子组件 */}
+      <SubComponent1 prop1={state1} onAction={handleAction} />
+      <SubComponent2 data={mockData} />
+    </div>
+  );
+}
+
+// [FILE_END]
+\`\`\`
+
+## 关键要求
+
+### 1. 导入规范
+\`\`\`javascript
+// ✅ 正确：导入所有依赖
+import ProductImage from './components/ProductImage';
+import { formatPrice } from './utils/formatters';
+
+// ❌ 错误：不要导入 React
+// import React from 'react';
+\`\`\`
+
+### 2. Props 接口（使用 JSDoc）
+\`\`\`javascript
+/**
+ * @param {string} props.title - 标题
+ * @param {number} props.price - 价格
+ * @param {Function} props.onClick - 点击回调
+ */
+export default function Component({ title, price, onClick }) {
+  // ...
+}
+\`\`\`
+
+### 3. 状态管理
+- 使用 \`React.useState\` 管理本地状态
+- 使用 \`React.useEffect\` 处理副作用
+- 状态命名清晰（如 \`isLoading\`, \`isExpanded\`）
+
+### 4. 样式处理
+- 使用内联 style 对象
+- 保持样式简洁，避免过度嵌套
+- 支持响应式（可选）
+
+**⚠️ 条件样式的正确写法**:
+\`\`\`javascript
+// ❌ 错误：多余的括号导致语法错误
+style={{
+  ...styles.buttonBase,
+  ...(isDisabled ? styles.disabled),  // ← 错误！
+}}
+
+// ✅ 正确方式 1：提供默认值
+style={{
+  ...styles.buttonBase,
+  ...(isDisabled ? styles.disabled : {}),
+}}
+
+// ✅ 正确方式 2：使用逻辑与（推荐）
+style={{
+  ...styles.buttonBase,
+  ...(isDisabled && styles.disabled),
+}}
+
+// ✅ 正确方式 3：直接在 style 属性上使用三元表达式
+style={isDisabled ? styles.disabled : styles.buttonBase}
+\`\`\`
+
+### 5. 代码完整性
+- ✅ 所有括号闭合
+- ✅ 所有字符串闭合
+- ✅ JSX 标签完整
+- ✅ 最后一行添加 \`// [FILE_END]\`
+
+## 输出要求
+- 代码不超过 ${architecture.mainComponent?.estimatedLines || 100} 行
+- 严格遵循上述模板和规范
+- 确保可以独立运行（配合已生成的子组件）
+- 最后一行必须添加 \`// [FILE_END]\` 标记`;
 }
 
 // 辅助函数: 提取代码导出摘要
@@ -1202,12 +1707,299 @@ function extractExportsSummary(code) {
   }
   
   // 查找命名导出
-  const namedExports = code.matchAll(/export\s+(?:const|function)\s+(\w+)/g);
+  const namedExports = code.matchAll(/export\s+(?:function|const)\s+(\w+)/g);
   for (const match of namedExports) {
     exports.push(match[1]);
   }
   
-  return exports.length > 0 ? exports.join(', ') : '未知';
+  return exports.length > 0 ? exports.join(', ') : '无导出';
+}
+
+// ====== 代码完整性验证函数 ======
+
+/**
+ * 验证生成代码的完整性
+ * @param {string} code - 生成的代码
+ * @returns {{valid: boolean, issues: string[], suggestions: string[]}}
+ */
+function validateCodeCompleteness(code) {
+  const issues = [];
+  const suggestions = [];
+  
+  if (!code || typeof code !== 'string') {
+    return {
+      valid: false,
+      issues: ['代码为空'],
+      suggestions: ['请重新生成代码']
+    };
+  }
+  
+  const trimmed = code.trim();
+  
+  // 1. 检查结束标记
+  if (!trimmed.endsWith('// [FILE_END]')) {
+    issues.push('缺少文件结束标记 // [FILE_END]');
+    suggestions.push('在代码末尾添加 // [FILE_END]');
+  }
+  
+  // 2. 检查括号平衡
+  const bracketBalance = checkBracketBalance(trimmed);
+  if (!bracketBalance.balanced) {
+    issues.push(`括号不平衡: ${bracketBalance.message}`);
+    suggestions.push('确保所有括号正确闭合');
+  }
+  
+  // 3. 检查字符串闭合
+  const stringCheck = checkStringClosure(trimmed);
+  if (!stringCheck.closed) {
+    issues.push(`字符串未闭合: ${stringCheck.message}`);
+    suggestions.push('确保所有引号正确配对');
+  }
+  
+  // 4. 检查 JSX 标签
+  const jsxCheck = checkJsxTags(trimmed);
+  if (!jsxCheck.valid) {
+    issues.push(`JSX 标签问题: ${jsxCheck.message}`);
+    suggestions.push('确保所有 JSX 标签正确闭合');
+  }
+  
+  // 5. 检查最后一行是否完整
+  const lines = trimmed.split('\n');
+  const lastLine = lines[lines.length - 1].trim();
+  if (lastLine && isIncompleteStatement(lastLine)) {
+    issues.push(`最后一行不完整: "${lastLine.substring(0, 50)}"`);
+    suggestions.push('确保最后一行是完整的语句');
+  }
+  
+  // 6. 检查条件样式语法（新增）
+  const styleSyntaxCheck = checkConditionalStyleSyntax(trimmed);
+  if (!styleSyntaxCheck.valid) {
+    issues.push(`条件样式语法错误: ${styleSyntaxCheck.message}`);
+    suggestions.push('确保三元表达式完整: condition ? value1 : value2');
+  }
+  
+  // 7. 检查是否有 export default（主组件和子组件）
+  if (trimmed.includes('export default function') || 
+      trimmed.includes('export default class') ||
+      trimmed.match(/export default\s+\w+/)) {
+    // 有默认导出，通过
+  } else if (trimmed.includes('export function') || trimmed.includes('export const')) {
+    // 工具函数使用命名导出，通过
+  } else {
+    issues.push('缺少导出语句');
+    suggestions.push('添加 export default 或 export 语句');
+  }
+  
+  return {
+    valid: issues.length === 0,
+    issues,
+    suggestions
+  };
+}
+
+/**
+ * 检查括号平衡
+ */
+function checkBracketBalance(code) {
+  const stack = [];
+  const pairs = { '(': ')', '[': ']', '{': '}', '<': '>' };
+  const openers = Object.keys(pairs);
+  const closers = Object.values(pairs);
+  
+  let inString = false;
+  let stringChar = '';
+  let inComment = false;
+  let inJsxTag = false;
+  
+  for (let i = 0; i < code.length; i++) {
+    const char = code[i];
+    const prevChar = i > 0 ? code[i - 1] : '';
+    
+    // 跳过注释
+    if (char === '/' && code[i + 1] === '/') {
+      inComment = true;
+      continue;
+    }
+    if (inComment && char === '\n') {
+      inComment = false;
+      continue;
+    }
+    if (inComment) continue;
+    
+    // 处理字符串
+    if ((char === '"' || char === "'" || char === '`') && prevChar !== '\\') {
+      if (!inString) {
+        inString = true;
+        stringChar = char;
+      } else if (char === stringChar) {
+        inString = false;
+      }
+      continue;
+    }
+    if (inString) continue;
+    
+    // 处理括号
+    if (openers.includes(char)) {
+      // JSX 中的 < 需要特殊处理
+      if (char === '<') {
+        if (prevChar === '=' || /\w/.test(prevChar)) {
+          // 可能是比较运算符或泛型，跳过
+          continue;
+        }
+        inJsxTag = true;
+      }
+      stack.push(char);
+    } else if (closers.includes(char)) {
+      if (char === '>') {
+        if (inJsxTag) {
+          inJsxTag = false;
+          stack.pop();
+        }
+        // 非 JSX 的 > 不处理
+      } else {
+        const lastOpener = stack.pop();
+        if (!lastOpener || pairs[lastOpener] !== char) {
+          return {
+            balanced: false,
+            message: `发现未匹配的 '${char}'`
+          };
+        }
+      }
+    }
+  }
+  
+  if (stack.length > 0) {
+    return {
+      balanced: false,
+      message: `有 ${stack.length} 个未闭合的括号: ${stack.join(', ')}`
+    };
+  }
+  
+  return { balanced: true, message: '' };
+}
+
+/**
+ * 检查字符串闭合
+ */
+function checkStringClosure(code) {
+  const singleQuotes = (code.match(/'/g) || []).length;
+  const doubleQuotes = (code.match(/"/g) || []).length;
+  const backticks = (code.match(/`/g) || []).length;
+  
+  const issues = [];
+  
+  if (singleQuotes % 2 !== 0) {
+    issues.push('单引号数量为奇数');
+  }
+  if (doubleQuotes % 2 !== 0) {
+    issues.push('双引号数量为奇数');
+  }
+  if (backticks % 2 !== 0) {
+    issues.push('反引号数量为奇数');
+  }
+  
+  return {
+    closed: issues.length === 0,
+    message: issues.join(', ')
+  };
+}
+
+/**
+ * 检查 JSX 标签
+ */
+function checkJsxTags(code) {
+  // 简单的 JSX 标签检查
+  const openTags = code.match(/<([a-zA-Z][a-zA-Z0-9]*)[^>]*>/g) || [];
+  const closeTags = code.match(/<\/([a-zA-Z][a-zA-Z0-9]*)>/g) || [];
+  
+  // 提取标签名
+  const openNames = openTags.map(tag => tag.match(/<([a-zA-Z]+)/)[1]);
+  const closeNames = closeTags.map(tag => tag.match(/<\/([a-zA-Z]+)/)[1]);
+  
+  // 统计每个标签的出现次数
+  const openCount = {};
+  const closeCount = {};
+  
+  openNames.forEach(name => {
+    openCount[name] = (openCount[name] || 0) + 1;
+  });
+  
+  closeNames.forEach(name => {
+    closeCount[name] = (closeCount[name] || 0) + 1;
+  });
+  
+  // 检查是否匹配（排除自关闭标签和 HTML 原生标签）
+  const htmlTags = ['div', 'span', 'p', 'h1', 'h2', 'h3', 'button', 'input', 'img', 'br', 'hr'];
+  
+  for (const name in openCount) {
+    if (htmlTags.includes(name.toLowerCase())) continue;
+    
+    const expected = openCount[name];
+    const actual = closeCount[name] || 0;
+    
+    if (expected !== actual) {
+      return {
+        valid: false,
+        message: `<${name}> 标签打开 ${expected} 次，关闭 ${actual} 次`
+      };
+    }
+  }
+  
+  return { valid: true, message: '' };
+}
+
+/**
+ * 检查是否为不完整的语句
+ */
+function isIncompleteStatement(line) {
+  // 常见的不完整模式
+  const incompletePatterns = [
+    /,\s*$/,           // 以逗号结尾
+    /\.\.\.\s*$/,      // 以省略号结尾
+    /\.\s*$/,          // 以点号结尾
+    /=>\s*$/,          // 以箭头函数符号结尾
+    /=\s*$/,           // 以赋值符号结尾
+    /\(\s*$/,          // 以开括号结尾
+    /\{\s*$/,          // 以开大括号结尾
+    /<[^>]*$/,         // 未闭合的 JSX 标签
+    /['"`][^'"`]*$/,   // 未闭合的字符串
+  ];
+  
+  return incompletePatterns.some(pattern => pattern.test(line));
+}
+
+/**
+ * 检查条件样式语法（新增）
+ * 检测不完整的三元表达式：...(condition ? value)
+ */
+function checkConditionalStyleSyntax(code) {
+  // 匹配模式: ...(xxx ? yyy) 或 ...(xxx ? yyy.zzz)
+  // 特征: 三元表达式缺少 : elseValue
+  const incompleteTernaryRegex = /\.\.\.\s*\(\s*\w+[^)]*\?\s*[^:)]+\)/g;
+  
+  const matches = code.match(incompleteTernaryRegex);
+  
+  if (matches && matches.length > 0) {
+    return {
+      valid: false,
+      message: `发现不完整的三元表达式: ${matches[0].substring(0, 50)}...`,
+      examples: matches.slice(0, 3) // 返回前3个错误示例
+    };
+  }
+  
+  // 检查嵌套属性访问：styles.a.b.c
+  const nestedPropertyRegex = /\.\.\.\s*\(\s*\w+\s*\?\s*styles\.\w+\.\w+/g;
+  const nestedMatches = code.match(nestedPropertyRegex);
+  
+  if (nestedMatches && nestedMatches.length > 0) {
+    return {
+      valid: false,
+      message: `禁止嵌套属性访问: ${nestedMatches[0].substring(0, 50)}...`,
+      examples: nestedMatches.slice(0, 3)
+    };
+  }
+  
+  return { valid: true, message: '' };
 }
 
 // 启动服务器

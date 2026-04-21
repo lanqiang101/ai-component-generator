@@ -210,7 +210,9 @@ export const CodeEditorPanel: React.FC = () => {
   const activeFile = files[activeFileIndex];
   const displayCode = activeFile ? activeFile.content : currentCode;
 
-  if (!currentCode) {
+  // 修复 Bug: 同时检查 currentCode 和 generatedFiles
+  // 多文件生成模式下,代码存储在 generatedFiles 中,currentCode 可能为空
+  if (!currentCode && generatedFiles.length === 0) {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center bg-white rounded-lg border border-gray-200">
         <FileCode2 size={48} className="text-gray-400 mb-4" />
