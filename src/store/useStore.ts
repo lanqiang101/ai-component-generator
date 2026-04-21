@@ -225,6 +225,58 @@ export const useStore = create<AppState>((set, get) => ({
       return { complete: true, truncated: false };
     };
     
+    // 智能补全函数：尝试修复不完整的代码
+    const autoCompleteCode = (code: string): string => {
+      let fixedCode = code.trim();
+      
+      // 如果已经有结束标记，直接返回
+      if (fixedCode.endsWith('// [END_OF_CODE]')) {
+        return fixedCode;
+      }
+      
+      console.log('🔧 尝试智能补全代码...');
+      
+      // 1. 检查并补全括号
+      const openParens = (fixedCode.match(/\(/g) || []).length;
+      const closeParens = (fixedCode.match(/\)/g) || []).length;
+      const openBraces = (fixedCode.match(/\{/g) || []).length;
+      const closeBraces = (fixedCode.match(/\}/g) || []).length;
+      
+      // 补全大括号
+      if (openBraces > closeBraces) {
+        const missing = openBraces - closeBraces;
+        console.log(`  - 补全 ${missing} 个大括号`);
+        fixedCode += '\n' + '}'.repeat(missing);
+      }
+      
+      // 补全圆括号
+      if (openParens > closeParens) {
+        const missing = openParens - closeParens;
+        console.log(`  - 补全 ${missing} 个圆括号`);
+        fixedCode += ')'.repeat(missing);
+      }
+      
+      // 2. 检查并补全 JSX 标签
+      const openTags = (fixedCode.match(/<[A-Z][a-zA-Z]*(?![^>]*\/>)(?![^>]*\/)\s*>/g) || []).length;
+      const closeTags = (fixedCode.match(/<\/[A-Z][a-zA-Z]*>/g) || []).length;
+      
+      if (openTags > closeTags) {
+        const missing = openTags - closeTags;
+        console.log(`  - 警告: 可能存在 ${missing} 个未闭合的 JSX 标签`);
+        // JSX 标签很难自动补全，这里只记录警告
+      }
+      
+      // 3. 确保有 export default
+      if (!fixedCode.includes('export default')) {
+        console.log('  - 警告: 缺少 export default');
+      }
+      
+      // 4. 添加结束标记
+      fixedCode += '\n\n// [END_OF_CODE]';
+      
+      return fixedCode;
+    };
+    
     try {
       // 关闭弹窗
       set({ showRefinementDialog: false });
@@ -298,9 +350,9 @@ export const useStore = create<AppState>((set, get) => ({
             // 等待一小段时间再重试
             await new Promise(resolve => setTimeout(resolve, 500));
           } else {
-            // 达到最大重试次数，使用当前代码但给出警告
-            finalCode = cleanedCode;
-            console.error('❌ 达到最大重试次数，使用当前代码');
+            // 达到最大重试次数，尝试智能补全
+            console.log('🔧 达到最大重试次数，尝试智能补全...');
+            finalCode = autoCompleteCode(cleanedCode);
           }
         }
       }

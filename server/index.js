@@ -71,6 +71,106 @@ app.post('/api/generate', async (req, res) => {
   }
 });
 
+// 从 JSON 结构组装完整组件代码(已废弃,保留供参考)
+// function assembleComponent(codeStructure, framework) {
+//   const {
+//     imports = '',
+//     types = '',
+//     utils = '',
+//     subComponents = [],
+//     mainComponent,
+//     mockData = '',
+//     styles = ''
+//   } = codeStructure;
+  
+//   if (!mainComponent || !mainComponent.render) {
+//     throw new Error('缺少主组件定义');
+//   }
+  
+//   let code = '';
+  
+//   // 1. 导入语句
+//   if (imports) {
+//     code += imports + '\n\n';
+//   } else {
+//     // 默认导入 React
+//     code += "import React from 'react';\n\n";
+//   }
+  
+//   // 2. 类型定义（如果有）
+//   if (types) {
+//     code += types + '\n\n';
+//   }
+  
+//   // 3. 工具函数
+//   if (utils) {
+//     code += '// ====== 工具函数 ======\n';
+//     code += utils + '\n\n';
+//   }
+  
+//   // 4. Mock 数据
+//   if (mockData) {
+//     code += '// ====== Mock 数据 ======\n';
+//     code += mockData + '\n\n';
+//   }
+  
+//   // 5. 子组件
+//   if (subComponents && subComponents.length > 0) {
+//     code += '// ====== 子组件 ======\n\n';
+//     subComponents.forEach((comp, index) => {
+//       code += `// --- ${comp.name} ---\n`;
+//       code += comp.code + '\n\n';
+//     });
+//   }
+  
+//   // 6. 主组件
+//   code += '// ====== 主组件 ======\n';
+  
+//   // 构建主组件签名
+//   const propsList = mainComponent.props || [];
+//   const propsStr = propsList.length > 0 ? `{ ${propsList.join(', ')} }` : '';
+  
+//   code += `export default function ${mainComponent.name}(${propsStr}) {\n`;
+  
+//   // 状态声明
+//   if (mainComponent.state && mainComponent.state.length > 0) {
+//     code += '  // 状态管理\n';
+//     mainComponent.state.forEach(stateLine => {
+//       code += `  ${stateLine}\n`;
+//     });
+//     code += '\n';
+//   }
+  
+//   // 事件处理器
+//   if (mainComponent.handlers && mainComponent.handlers.length > 0) {
+//     code += '  // 事件处理\n';
+//     mainComponent.handlers.forEach(handlerLine => {
+//       code += `  ${handlerLine}\n`;
+//     });
+//     code += '\n';
+//   }
+  
+//   // 渲染部分
+//   code += '  // 渲染\n';
+//   code += mainComponent.render;
+  
+//   // 确保闭合
+//   if (!code.trim().endsWith('}')) {
+//     code += '\n}';
+//   }
+  
+//   // 7. 样式（如果有外部样式）
+//   if (styles) {
+//     code += '\n\n// ====== 样式 ======\n';
+//     code += styles;
+//   }
+  
+//   // 8. 添加结束标记
+//   code += '\n\n// [END_OF_CODE]';
+  
+//   return code;
+// }
+
 function buildPrompt(params) {
   const {
     componentName,
@@ -185,6 +285,12 @@ ${refinedRequirements.prototypeDiagram || ''}
 
   const promptText = `你是一个经验丰富的前端开发工程师，请根据用户需求生成一个${frameworkLabel}组件。
 
+⚠️ **极其重要的完整性要求（违反将导致代码无法使用）**:
+1. **必须在代码最后一行添加标记**: \`// [END_OF_CODE]\`
+2. **所有括号、引号、标签必须成对闭合**
+3. **如果代码较长,宁可简化逻辑也要保证结构完整**
+4. **输出前自我检查**: 最后一行是否是完整语句?所有括号是否闭合?
+
 组件需求:
 - 组件名称: ${componentName}
 - 组件类型: ${componentTypeLabel}
@@ -195,177 +301,58 @@ ${uiLibraryText}${stylePreprocessorText}- ${interactive ? '需要添加完整的
 - ${needMockData ? '请生成合理的默认 Mock 数据，方便直接预览，把 Mock 数据放在代码顶部方便编辑' : '不需要 Mock 数据'}
 ${extraRequirements ? `- 额外需求: ${extraRequirements}` : ''}
 ${refinedRequirementsSection}
-重要要求（必须严格遵守）:
 
-1. **代码结构规范 - 组件化封装与文件拆分**:
-   - **必须采用组件化开发思维**，将复杂功能拆分为多个独立的子组件
-   - 每个子组件应该是**单一职责**，只负责一个明确的功能模块
-   - 主组件作为容器，负责组合和协调所有子组件
-   - 每个组件代码控制在 **50-100 行**以内，避免过长
-   - 使用清晰的注释标注每个子组件的用途和职责
-   
-   **文件拆分结构**（非常重要！）：
-   **每个子组件都必须独立成文件**，不要把所有组件放在一个文件里！
-   
-   将代码按照以下结构组织，使用明确的注释分隔不同文件：
-   
-   \`\`\`javascript
-   // ====== FILE: utils.ts ======
-   // 工具函数和辅助方法
-   
-   // 格式化价格
-   const formatPrice = (price) => {
-     return \`¥\${price.toFixed(2)}\`;
-   };
-   
-   // 格式化日期
-   const formatDate = (date) => {
-     return new Date(date).toLocaleDateString('zh-CN');
-   };
-   
-   // 验证邮箱
-   const validateEmail = (email) => {
-     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-   };
-   
-   // ====== FILE: ProductBadges.tsx ======
-   // 子组件：商品角标
-   // 职责：展示新品、热销等角标
-   
-   const ProductBadges = ({ badges }) => {
-     return (
-       <div className="absolute top-2 left-2 flex flex-col gap-1">
-         {badges.map((badge, index) => (
-           <span 
-             key={index}
-             className="px-2 py-0.5 bg-blue-500 text-white text-xs rounded"
-           >
-             {badge}
-           </span>
-         ))}
-       </div>
-     );
-   };
-   
-   // ====== FILE: ProductImageSection.tsx ======
-   // 子组件：商品图片区
-   // 职责：展示商品图片、处理图片加载失败、显示角标
-   
-   const ProductImageSection = ({ imageUrl, badges, onImageClick }) => {
-     const [isHovered, setIsHovered] = React.useState(false);
-     
-     return (
-       <div className="relative">
-         <img 
-           src={imageUrl} 
-           alt="product" 
-           className="w-full h-64 object-cover"
-           onClick={onImageClick}
-         />
-         {badges && <ProductBadges badges={badges} />}
-       </div>
-     );
-   };
-   
-   // ====== FILE: ProductInfoSection.tsx ======
-   // 子组件：商品信息区
-   // 职责：展示标题、价格、描述等信息
-   
-   const ProductInfoSection = ({ title, price, originalPrice }) => {
-     return (
-       <div className="p-4 space-y-2">
-         <h3 className="text-lg font-medium text-gray-900">{title}</h3>
-         <div className="flex items-baseline gap-2">
-           <span className="text-2xl font-bold text-red-500">
-             {formatPrice(price)}
-           </span>
-           {originalPrice && (
-             <del className="text-sm text-gray-400">
-               {formatPrice(originalPrice)}
-             </del>
-           )}
-         </div>
-       </div>
-     );
-   };
-   
-   // ====== FILE: ProductActions.tsx ======
-   // 子组件：操作按钮区
-   // 职责：处理购买、收藏等交互操作
-   
-   const ProductActions = ({ onBuy, onFavorite, isFavorite }) => {
-     return (
-       <div className="flex gap-2 p-4">
-         <button 
-           onClick={onBuy}
-           className="flex-1 bg-blue-500 text-white py-2 rounded hover:bg-blue-600"
-         >
-           立即购买
-         </button>
-         <button 
-           onClick={onFavorite}
-           className={cn(
-             "px-4 py-2 border rounded transition-all",
-             isFavorite 
-               ? "border-red-500 text-red-500" 
-               : "border-gray-300 text-gray-600"
-           )}
-         >
-           {isFavorite ? '已收藏' : '收藏'}
-         </button>
-       </div>
-     );
-   };
-   
-   // ====== FILE: component.tsx ======
-   // 主组件：商品卡片
-   // 职责：组合所有子组件，管理整体状态和数据流
-   
-   // === Mock 数据 ===
-   const mockData = {
-     id: 'p1001',
-     title: '商品标题',
-     price: 99.99,
-     originalPrice: 199.99,
-     image: 'https://images.unsplash.com/photo-1234567890',
-     badges: ['新品', '热销'],
-     isFavorite: false
-   };
-   
-   export default function ProductCard({ data = mockData }) {
-     const [isFavorite, setIsFavorite] = React.useState(data.isFavorite);
-     
-     const handleBuy = () => {
-       console.log('购买:', data.id);
-     };
-     
-     const handleFavorite = () => {
-       setIsFavorite(!isFavorite);
-     };
-     
-     return (
-       <div className="max-w-sm rounded-lg overflow-hidden shadow-sm border border-gray-200">
-         <ProductImageSection 
-           imageUrl={data.image} 
-           badges={data.badges}
-           onImageClick={() => console.log('点击图片')}
-         />
-         <ProductInfoSection 
-           title={data.title}
-           price={data.price}
-           originalPrice={data.originalPrice}
-         />
-         <ProductActions 
-           onBuy={handleBuy}
-           onFavorite={handleFavorite}
-           isFavorite={isFavorite}
-         />
-       </div>
-     );
-   }
-   \`\`\`
+## 📋 代码结构模板（必须严格遵循）
 
-2. **代码质量要求**:
+Please按照 following structure organize code, ensure each part is complete:
+
+\`\`\`javascript
+// ====== 导入语句 ======
+import React from 'react';
+
+// ====== 工具函数（可选）======
+// 如果有工具函数，放在这里
+
+// ====== Mock 数据（如果需要）======
+const mockData = {
+  // 完整的 Mock 数据对象
+};
+
+// ====== 子组件（可选，每个不超过80行）======
+const SubComponent1 = (props) => {
+  return (
+    // JSX
+  );
+};
+
+// ====== 主组件（必须 export default）======
+export default function ComponentName(props) {
+  // 1. 状态声明
+  const [state1, setState1] = React.useState(initialValue);
+  
+  // 2. 副作用
+  React.useEffect(() => {
+    // effect logic
+  }, []);
+  
+  // 3. 事件处理器
+  const handler1 = () => {
+    // handler logic
+  };
+  
+  // 4. 渲染
+  return (
+    <div className="container">
+      {/* 完整的 JSX 结构 */}
+    </div>
+  );
+}
+// [END_OF_CODE]
+\`\`\`
+
+## ⚠️ 关键要求
+
+1. **代码质量要求**:
    - 只返回完整可运行的组件代码，不要有多余解释
    - 代码要整洁，有适当的注释
    - 如果使用 UI 库，请正确导入对应版本的组件
@@ -377,24 +364,14 @@ ${refinedRequirementsSection}
    - **不要使用 interface、type、泛型等 TypeScript 特性**
    - **函数参数不要添加类型注解，直接使用解构：({ param1, param2 }) 而不是 ({ param1, param2 }: PropsType)**
 
-3. **⚠️ 代码完整性强制要求（非常重要）**:
-   - **必须输出完整的代码，不能截断！**
-   - **所有括号必须闭合**: ()、{}、<>
-   - **所有字符串必须闭合**: ""、''、``
-   - **所有 JSX 标签必须闭合**: <div>...</div> 或 <div />
-   - **最后一行必须是完整的语句，不能以逗号、箭头、点号结尾**
-   - **必须在代码末尾添加结束标记**: // [END_OF_CODE]
-   - **如果代码较长，请精简代码但保持完整性，不要截断！**
-   - **自我检查**: 输出前检查最后一行是否完整，如果不完整请补充完整
-
-4. **可读性优化**:
+2. **可读性优化**:
    - 组件命名要有意义，体现功能
    - 函数和变量使用清晰的命名
    - 逻辑清晰，避免过度嵌套（最多 3 层）
    - 适当使用空行分隔不同逻辑块
    - 变量声明要完整，确保所有使用的变量都已定义
 
-5. **预览兼容性**:
+3. **预览兼容性**:
    - 生成的代码需要能在浏览器中直接运行
    - 避免使用 Node.js 特有的 API
    - Mock 数据要完整，包含所有组件需要的数据字段
@@ -411,7 +388,7 @@ ${refinedRequirementsSection}
      \`\`\`
    - 确保所有导入的组件和库都能正常工作
 
-开始生成代码:`;
+开始生成代码（记住在最后一行添加 // [END_OF_CODE]）:`;
 
   return promptText;
 }

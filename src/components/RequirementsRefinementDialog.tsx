@@ -139,48 +139,85 @@ const MermaidDiagram: React.FC<{ chart: string; title?: string }> = ({ chart, ti
   const sanitizeMermaidSyntax = (mermaidCode: string): string => {
     let sanitized = mermaidCode;
     
-    // 处理方括号形式的节点: NodeId[Label with special chars]
-    // 需要转义标签中的括号、引号等特殊字符
-    sanitized = sanitized.replace(
-      /(\w+)\[(.*?)\]/g,
-      (_match, nodeId, label) => {
-        // 转义双引号为 HTML 实体或其他安全形式
-        const escapedLabel = label
-          .replace(/"/g, '&quot;')  // 转义双引号
-          .replace(/\(/g, '&#40;')  // 转义左括号为 HTML 实体
-          .replace(/\)/g, '&#41;'); // 转义右括号为 HTML 实体
-        return `${nodeId}["${escapedLabel}"]`;
-      }
-    );
+    // 检测是否为 block-beta 语法
+    const isBlockBeta = /^\s*block-beta/i.test(sanitized.trim());
     
-    // 处理圆括号形式的节点: NodeId("Label")
-    sanitized = sanitized.replace(
-      /(\w+)\("(.*?)"\)/g,
-      (_match, nodeId, label) => {
-        const escapedLabel = label
-          .replace(/"/g, '&quot;')
-          .replace(/\(/g, '&#40;')
-          .replace(/\)/g, '&#41;');
-        return `${nodeId}["${escapedLabel}"]`;
-      }
-    );
-    
-    // 处理无引号的简单节点: NodeId[Label]
-    sanitized = sanitized.replace(
-      /(\w+)\[([^\]]+)\]/g,
-      (_match, nodeId, label) => {
-        // 如果标签不包含引号,添加引号并转义特殊字符
-        if (!label.includes('"')) {
+    if (isBlockBeta) {
+      // block-beta 语法的特殊处理
+      // 匹配模式: NodeId["Label"] 或 NodeId[Label]
+      sanitized = sanitized.replace(
+        /(\w+)\[(.*?)\]/g,
+        (_match, nodeId, label) => {
+          // 统一用双引号包裹,并转义内部的双引号和括号
           const escapedLabel = label
+            .replace(/"/g, '&quot;')
             .replace(/\(/g, '&#40;')
             .replace(/\)/g, '&#41;')
             .replace(/\[/g, '&#91;')
             .replace(/\]/g, '&#93;');
           return `${nodeId}["${escapedLabel}"]`;
         }
-        return _match;
-      }
-    );
+      );
+      
+      // 处理无引号的简单形式: NodeId Label (block-beta 特有语法)
+      // 这种格式在 block-beta 中表示节点,需要转换为带引号的形式
+      sanitized = sanitized.replace(
+        /^(\s*)(\w+)\s+([^[\]\n"]+)$/gm,
+        (match, indent, nodeId, label) => {
+          // 排除关键字如 columns, space, block, end 等
+          const keywords = ['columns', 'space', 'block', 'end', 'stack'];
+          if (!keywords.includes(nodeId.toLowerCase())) {
+            const escapedLabel = label.trim()
+              .replace(/"/g, '&quot;')
+              .replace(/\(/g, '&#40;')
+              .replace(/\)/g, '&#41;');
+            return `${indent}${nodeId}["${escapedLabel}"]`;
+          }
+          return match;
+        }
+      );
+    } else {
+      // graph/flowchart 语法的处理
+      // 处理方括号形式的节点: NodeId[Label with special chars]
+      sanitized = sanitized.replace(
+        /(\w+)\[(.*?)\]/g,
+        (_match, nodeId, label) => {
+          const escapedLabel = label
+            .replace(/"/g, '&quot;')
+            .replace(/\(/g, '&#40;')
+            .replace(/\)/g, '&#41;');
+          return `${nodeId}["${escapedLabel}"]`;
+        }
+      );
+      
+      // 处理圆括号形式的节点: NodeId("Label")
+      sanitized = sanitized.replace(
+        /(\w+)\("(.*?)"\)/g,
+        (_match, nodeId, label) => {
+          const escapedLabel = label
+            .replace(/"/g, '&quot;')
+            .replace(/\(/g, '&#40;')
+            .replace(/\)/g, '&#41;');
+          return `${nodeId}["${escapedLabel}"]`;
+        }
+      );
+      
+      // 处理无引号的简单节点: NodeId[Label]
+      sanitized = sanitized.replace(
+        /(\w+)\[([^\]]+)\]/g,
+        (_match, nodeId, label) => {
+          if (!label.includes('"')) {
+            const escapedLabel = label
+              .replace(/\(/g, '&#40;')
+              .replace(/\)/g, '&#41;')
+              .replace(/\[/g, '&#91;')
+              .replace(/\]/g, '&#93;');
+            return `${nodeId}["${escapedLabel}"]`;
+          }
+          return _match;
+        }
+      );
+    }
     
     return sanitized;
   };
