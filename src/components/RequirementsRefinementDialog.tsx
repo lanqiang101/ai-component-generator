@@ -135,6 +135,41 @@ const MermaidDiagram: React.FC<{ chart: string; title?: string }> = ({ chart, ti
   const [error, setError] = useState<string>('');
   const [isNotMermaid, setIsNotMermaid] = useState(false);
 
+  // 清理和转义 Mermaid 节点文本中的特殊字符
+  const sanitizeMermaidSyntax = (mermaidCode: string): string => {
+    let sanitized = mermaidCode;
+    
+    // 处理节点标签中的特殊字符：括号、引号等
+    // 匹配模式: NodeId[Label with special chars] 或 NodeId("Label")
+    sanitized = sanitized.replace(
+      /(\w+)\[(.*?)\]/g,
+      (match, nodeId, label) => {
+        // 转义方括号内的特殊字符
+        const escapedLabel = label
+          .replace(/"/g, '\\"')  // 转义双引号
+          .replace(/\(/g, '\\(')  // 转义左括号
+          .replace(/\)/g, '\\)')  // 转义右括号
+          .replace(/\[/g, '\\[')  // 转义左方括号
+          .replace(/\]/g, '\\]'); // 转义右方括号
+        return `${nodeId}[${escapedLabel}]`;
+      }
+    );
+    
+    // 处理圆括号形式的节点: NodeId("Label")
+    sanitized = sanitized.replace(
+      /(\w+)\("(.*?)"\)/g,
+      (match, nodeId, label) => {
+        const escapedLabel = label
+          .replace(/"/g, '\\"')
+          .replace(/\(/g, '\\(')
+          .replace(/\)/g, '\\)');
+        return `${nodeId}("${escapedLabel}")`;
+      }
+    );
+    
+    return sanitized;
+  };
+
   useEffect(() => {
     const renderDiagram = async () => {
       try {
@@ -146,7 +181,7 @@ const MermaidDiagram: React.FC<{ chart: string; title?: string }> = ({ chart, ti
         }
 
         // 检测是否为 Mermaid 语法
-        const isMermaidSyntax = /^(graph|flowchart|sequenceDiagram|classDiagram|stateDiagram|pie|gantt|journey|erDiagram)/i.test(cleanChart);
+        const isMermaidSyntax = /^(graph|flowchart|sequenceDiagram|classDiagram|stateDiagram|pie|gantt|journey|erDiagram|block-beta)/i.test(cleanChart);
         
         if (!isMermaidSyntax) {
           // 不是 Mermaid 语法，标记并返回
@@ -154,17 +189,29 @@ const MermaidDiagram: React.FC<{ chart: string; title?: string }> = ({ chart, ti
           return;
         }
 
+        // 清理和转义特殊字符
+        const sanitizedChart = sanitizeMermaidSyntax(cleanChart);
+
         // 生成唯一 ID
         const id = `mermaid-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         
         // 渲染 SVG
-        const { svg } = await mermaid.render(id, cleanChart);
+        const { svg } = await mermaid.render(id, sanitizedChart);
         setSvg(svg);
         setError('');
         setIsNotMermaid(false);
       } catch (err) {
         console.error('Mermaid 渲染失败:', err);
-        setError(err instanceof Error ? err.message : '渲染失败');
+        // 区分不同类型的错误
+        const errorMessage = err instanceof Error ? err.message : '渲染失败';
+        
+        // 如果是语法解析错误，提供更友好的提示
+        if (errorMessage.includes('Parse error') || errorMessage.includes('Syntax error')) {
+          setError(`语法解析错误：${errorMessage}\n\n原始内容已降级为文本展示`);
+        } else {
+          setError(errorMessage);
+        }
+        
         setSvg('');
         setIsNotMermaid(false);
       }

@@ -1,28 +1,15 @@
 import express from 'express';
 import { fileURLToPath } from 'url';
 import path from 'path';
-import dotenv from 'dotenv';
-import { ProxyAgent, setGlobalDispatcher } from 'undici';
-
-// 加载 .env 文件中的环境变量
-dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// 配置代理（如果设置了代理环境变量）
-if (process.env.https_proxy || process.env.http_proxy) {
-  const proxyUrl = process.env.https_proxy || process.env.http_proxy;
-  console.log(`🔧 配置代理: ${proxyUrl}`);
-  const proxyAgent = new ProxyAgent(proxyUrl);
-  setGlobalDispatcher(proxyAgent);
-}
-
-// 声明 process 变量（解决 ESLint no-undef 错误）
-const { env } = process;
+// 声明 process 变量（ES Module 环境中需要）
+const process = globalThis.process || { env: {} };
 
 const app = express();
-const PORT = env.PORT || 3001;
+const PORT = process.env.PORT || 3001;
 
 app.use(express.json());
 
@@ -52,7 +39,25 @@ app.post('/api/generate', async (req, res) => {
     const prompt = buildPrompt(params);
 
     // 调用 AI API
-    const result = await callAI(null, prompt);
+    let result = await callAI(null, prompt);
+    
+    // 清理AI返回的代码：移除各种格式的Markdown标记
+    if (result) {
+      result = result.trim();
+      
+      // 1. 处理转义的格式: \`\`\`tsx\n 或 \\`\\`\\`tsx\\n
+      result = result.replace(/\\?`{3}(?:tsx|typescript|javascript|jsx|vue|html|css|scss|less)?\\?\\n?/gi, '');
+      
+      // 2. 处理正常格式: ```tsx\n
+      result = result.replace(/^`{3}(?:tsx|typescript|javascript|jsx|vue|html|css|scss|less)?\s*\n?/i, '');
+      result = result.replace(/\n?`{3}$/, '');
+      
+      // 3. 处理可能存在的开头/结尾空白
+      result = result.trim();
+      
+      console.log('清理后的代码长度:', result.length);
+      console.log('代码前100字符:', result.substring(0, 100));
+    }
     
     res.json({ 
       success: true, 
@@ -397,7 +402,7 @@ function getUILibraryName(value) {
  */
 async function callAI(model, prompt) {
   // 使用 Cloudflare Worker 代理 URL
-  const proxyUrl = env.AI_PROXY_URL || 'http://localhost:8787';
+  const proxyUrl = process.env.AI_PROXY_URL || 'http://localhost:8787';
 
   const headers = {
     'Content-Type': 'application/json',
@@ -418,12 +423,6 @@ async function callAI(model, prompt) {
   });
 
   try {
-    console.log('🌐 正在请求 AI API...');
-    console.log('📡 代理配置:', {
-      https_proxy: env.https_proxy,
-      http_proxy: env.http_proxy,
-    });
-    
     const response = await fetch(proxyUrl, {
       method: 'POST',
       headers,
@@ -432,7 +431,6 @@ async function callAI(model, prompt) {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`❌ API 请求失败: ${response.status}`, errorText);
       throw new Error(`API 请求失败: ${response.status} ${errorText}`);
     }
 
@@ -440,30 +438,12 @@ async function callAI(model, prompt) {
 
     // 处理火山方舟的响应格式
     if (data.choices && data.choices.length > 0) {
-      console.log('✅ AI API 调用成功');
       return data.choices[0].message.content;
     } else {
-      console.error('❌ API 返回格式错误:', JSON.stringify(data, null, 2));
       throw new Error('API 返回格式错误');
     }
   } catch (err) {
-    console.error('❌ AI API 调用失败:', err.message);
-    console.error('🔍 错误详情:', err.cause || err);
-    
-    // 提供更友好的错误提示
-    if (err.message.includes('fetch failed') || err.message.includes('timeout')) {
-      console.error('\n🔍 可能的原因：');
-      console.error('1. 代理工具未运行或端口不正确');
-      console.error('2. 国内网络无法直接访问 Cloudflare Workers');
-      console.error('\n💡 解决方案：');
-      console.error('方案 1: 检查代理工具是否运行');
-      console.error('  - 确认 Clash/Shadowsocks 等代理工具已启动');
-      console.error('  - 确认代理端口是 7890（或其他端口）');
-      console.error('\n方案 2: 使用本地 Worker 开发');
-      console.error('  cd worker && wrangler dev');
-      console.error('  修改 .env: AI_PROXY_URL=http://localhost:8787');
-    }
-    
+    console.error('AI API 调用失败:', err);
     throw new Error(`AI 服务调用失败: ${err.message}`);
   }
 }

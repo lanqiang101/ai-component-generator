@@ -13,6 +13,7 @@ import {
   Smartphone,
   Tablet,
   Tv,
+  Laptop,
   AlertCircle,
 } from "lucide-react";
 
@@ -23,16 +24,26 @@ function validateCode(code: string): { valid: boolean; error?: string } {
   }
 
   try {
+    // 清理代码
+    let cleanCode = code.trim();
+    
+    // 检查并移除代码块标记
+    if (cleanCode.startsWith('```')) {
+      cleanCode = cleanCode.replace(/^```(?:tsx|typescript|javascript|jsx|vue|html|css|scss|less)?\s*\n?/i, '');
+      cleanCode = cleanCode.replace(/\n?```$/, '');
+      cleanCode = cleanCode.trim();
+    }
+
     // 检查基本语法
     const isReactCode =
-      code.includes("React") ||
-      code.includes("jsx") ||
-      code.includes("tsx") ||
-      code.includes("import React");
+      cleanCode.includes("React") ||
+      cleanCode.includes("jsx") ||
+      cleanCode.includes("tsx") ||
+      cleanCode.includes("import React");
 
     if (isReactCode) {
       // 检查括号匹配
-      const parentheses = code.match(/[()]/g) || [];
+      const parentheses = cleanCode.match(/[()]/g) || [];
       let balance = 0;
       for (const char of parentheses) {
         if (char === "(") balance++;
@@ -42,11 +53,11 @@ function validateCode(code: string): { valid: boolean; error?: string } {
         }
       }
       if (balance !== 0) {
-        return { valid: false, error: "括号不匹配，请检查代码" };
+        return { valid: false, error: `括号不匹配（差 ${Math.abs(balance)} 个括号），请检查代码` };
       }
 
       // 检查大括号匹配
-      const braces = code.match(/[{}]/g) || [];
+      const braces = cleanCode.match(/[{}]/g) || [];
       balance = 0;
       for (const char of braces) {
         if (char === "{") balance++;
@@ -56,15 +67,16 @@ function validateCode(code: string): { valid: boolean; error?: string } {
         }
       }
       if (balance !== 0) {
-        return { valid: false, error: "大括号不匹配，请检查代码" };
+        return { valid: false, error: `大括号不匹配（差 ${Math.abs(balance)} 个大括号），请检查代码` };
       }
 
-      // 检查尖括号匹配（JSX）
-      const hasUnclosedTags =
-        /<[A-Z][a-zA-Z]*(?![^>]*\/>)(?![\s\S]*<\/[A-Z][a-zA-Z]*>)/.test(code);
-      if (hasUnclosedTags) {
-        // 这个检查可能误报，只做警告
-        console.warn("可能存在未闭合的 JSX 标签");
+      // 检查尖括号匹配（JSX）- 简化检查，避免误报
+      const openTags = (cleanCode.match(/<[A-Z][a-zA-Z]*(?![^>]*\/>)(?![^>]*\/)\s*>/g) || []).length;
+      const closeTags = (cleanCode.match(/<\/[A-Z][a-zA-Z]*>/g) || []).length;
+      
+      // 只在不匹配时才警告
+      if (openTags !== closeTags && Math.abs(openTags - closeTags) > 2) {
+        console.warn(`可能存在未闭合的 JSX 标签（开标签: ${openTags}, 闭标签: ${closeTags}）`);
       }
     }
 
@@ -324,6 +336,11 @@ ${code}
 
     // 5. 移除 TypeScript 类型注解（使用更安全的方法）
 
+    // 5.0 移除独立的类型定义语句（如：(product: Product) => void;）
+    // 匹配模式：以 ( 或标识符开头，包含 : Type，以 ; 结尾的独立行
+    processed = processed.replace(/^\s*\([^)]*:\s*\w+\)\s*=>\s*\w+;\s*$/gm, '');
+    processed = processed.replace(/^\s*\w+\s*:\s*\w+\s*=>\s*\w+;\s*$/gm, '');
+
     // 5.1 处理 React.FC<Props> 类型的变量声明
     processed = processed.replace(
       /(const|let|var)\s+(\w+)\s*:\s*React\.FC\s*<[^>]*>\s*=/g,
@@ -380,6 +397,11 @@ ${code}
     processed = processed.replace(/:\s*Promise<[^>]*>\s*=>/g, " =>");
     processed = processed.replace(/:\s*JSX\.Element\s*=>/g, " =>");
 
+    // 5.6 移除函数参数的类型注解（通用模式）
+    // 匹配：param: Type 在括号内
+    processed = processed.replace(/(\w+)\s*:\s*\w+(?:<[^>]*>)?(\s*[),])/g, '$1$2');
+    processed = processed.replace(/(\w+)\s*:\s*\{[^}]*\}(\s*[),])/g, '$1$2');
+
     // 6. 移除 interface 和 type 定义
     processed = processed.replace(/interface\s+\w+\s*\{[\s\S]*?\}\s*/g, "");
     processed = processed.replace(/type\s+\w+\s*=[\s\S]*?;?\s*/g, "");
@@ -405,11 +427,11 @@ ${code}
   // 获取分类标签
   const getCategoryLabel = (category: string) => {
     const labels: Record<string, string> = {
-      standard: "标准",
-      phones: "手机设备",
-      tablets: "平板设备",
-      computers: "桌面显示器",
-      displays: "显示设备",
+      mobile: "手机设备",
+      tablet: "平板设备",
+      desktop: "桌面显示器",
+      laptop: "笔记本电脑",
+      tv: "电视屏幕",
     };
     return labels[category] || category;
   };
@@ -497,17 +519,20 @@ ${code}
                   {resolutionListGrouped.map((group) => (
                     <Select.Group key={group.category}>
                       <Select.Label className="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center">
-                        {group.category === "phones" && (
+                        {group.category === "mobile" && (
                           <Smartphone className="w-4 h-4 mr-2" />
                         )}
-                        {group.category === "tablets" && (
+                        {group.category === "tablet" && (
                           <Tablet className="w-4 h-4 mr-2" />
                         )}
-                        {group.category === "computers" && (
+                        {group.category === "desktop" && (
                           <Monitor className="w-4 h-4 mr-2" />
                         )}
-                        {group.category === "displays" && (
+                        {group.category === "tv" && (
                           <Tv className="w-4 h-4 mr-2" />
+                        )}
+                        {group.category === "laptop" && (
+                          <Laptop className="w-4 h-4 mr-2" />
                         )}
                         {getCategoryLabel(group.category)}
                       </Select.Label>

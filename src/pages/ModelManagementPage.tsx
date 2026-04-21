@@ -10,7 +10,7 @@ import { useStore } from '../store/useStore';
 
 export const ModelManagementPage: React.FC = () => {
   const navigate = useNavigate();
-  const { models } = useStore();
+  const { models, saveModels } = useStore();
   const [loading, setLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);

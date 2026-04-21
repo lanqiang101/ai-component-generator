@@ -1,6 +1,6 @@
 
 import { create } from 'zustand';
-import type { AppState, ModelConfig, PreviewResolution, SystemConfig, RefinedRequirements, GenerationState } from '../types';
+import type { AppState, ModelConfig, PreviewResolution, SystemConfig, RefinedRequirements } from '../types';
 import { defaultComponentParams } from '../types/defaults';
 
 const STORAGE_KEYS = {
@@ -100,7 +100,7 @@ export const useStore = create<AppState>((set, get) => ({
   },
   setGeneration: (state) => {
     set((prev) => ({
-      generation: { ...prev.generation, ...state } as GenerationState,
+      generation: { ...prev.generation, ...state },
     }));
   },
 
@@ -196,7 +196,19 @@ export const useStore = create<AppState>((set, get) => ({
         throw new Error(result.error);
       }
       
-      setCurrentCode(result.data.code);
+      // 清理生成的代码（Worker已处理Markdown，此处仅做兜底）
+      let cleanedCode = result.data.code;
+      if (cleanedCode) {
+        cleanedCode = cleanedCode.trim();
+        
+        // 兜底：再次确保没有Markdown标记
+        cleanedCode = cleanedCode.replace(/\\?`{3}(?:tsx|typescript|javascript|jsx|vue|html|css|scss|less)?\\?\n?/gi, '');
+        cleanedCode = cleanedCode.replace(/^`{3}(?:tsx|typescript|javascript|jsx|vue|html|css|scss|less)?\s*\n?/i, '');
+        cleanedCode = cleanedCode.replace(/\n?`{3}$/, '');
+        cleanedCode = cleanedCode.trim();
+      }
+      
+      setCurrentCode(cleanedCode);
       setGeneration({ isGenerating: false });
       return true;
     } catch (err) {

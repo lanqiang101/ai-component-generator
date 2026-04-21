@@ -40,13 +40,21 @@ function detectLanguage(code: string): string {
 function splitCodeToFiles(code: string): CodeFile[] {
   const files: CodeFile[] = [];
   
+  // 清理代码：移除代码标记
+  let cleanCode = code.trim();
+  if (cleanCode.startsWith('```')) {
+    cleanCode = cleanCode.replace(/^```(?:tsx|typescript|javascript|jsx|vue|html|css|scss|less)?\s*\n?/i, '');
+    cleanCode = cleanCode.replace(/\n?```$/, '');
+    cleanCode = cleanCode.trim();
+  }
+  
   // 使用正则表达式匹配所有 FILE 标记
   const fileRegex = /\/\/\s*======\s*FILE:\s*([^\n]+)\s*======([\s\S]*?)(?=\/\/\s*======\s*FILE:|$)/g;
   let match;
   
-  while ((match = fileRegex.exec(code)) !== null) {
+  while ((match = fileRegex.exec(cleanCode)) !== null) {
     const fileName = match[1].trim();
-    let fileContent = match[2].trim();
+    const fileContent = match[2].trim();
     
     // 检测文件语言
     let language = 'typescript';
@@ -68,9 +76,9 @@ function splitCodeToFiles(code: string): CodeFile[] {
   // 如果没有找到 FILE 标记，则尝试其他拆分方式
   if (files.length === 0) {
     // 检查是否包含样式代码（CSS/SCSS/Less）
-    const cssMatch = code.match(/(?:\.css|\.scss|\.less|styled-components|css\s*`[\s\S]*?`)/);
+    const cssMatch = cleanCode.match(/(?:\.css|\.scss|\.less|styled-components|css\s*`[\s\S]*?`)/);
     if (cssMatch) {
-      const cssContent = code.match(/css\s*`([\s\S]*?)`|<style>([\s\S]*?)<\/style>/);
+      const cssContent = cleanCode.match(/css\s*`([\s\S]*?)`|<style>([\s\S]*?)<\/style>/);
       if (cssContent) {
         const lang = cssMatch[0].includes('.scss') ? 'scss' : cssMatch[0].includes('.less') ? 'less' : 'css';
         const ext = lang === 'scss' ? 'scss' : lang === 'less' ? 'less' : 'css';
@@ -83,9 +91,9 @@ function splitCodeToFiles(code: string): CodeFile[] {
     }
     
     // 检查是否包含工具函数
-    const utilsMatch = code.match(/(\/\/|\/\*)\s*工具函数[\s\S]*?(const|function)\s+\w+/);
+    const utilsMatch = cleanCode.match(/(\/\/|\/\*)\s*工具函数[\s\S]*?(const|function)\s+\w+/);
     if (utilsMatch) {
-      const utilsSection = code.match(/(?:\/\/|\/\*)\s*工具函数[\s\S]*?(?=\n\n(?:\/\/|\/\*)|$)/g);
+      const utilsSection = cleanCode.match(/(?:\/\/|\/\*)\s*工具函数[\s\S]*?(?=\n\n(?:\/\/|\/\*)|$)/g);
       if (utilsSection) {
         files.push({
           name: 'utils.ts',
@@ -97,9 +105,9 @@ function splitCodeToFiles(code: string): CodeFile[] {
     
     // 主组件文件
     files.push({
-      name: detectLanguage(code) === 'typescript' ? 'component.tsx' : detectLanguage(code) === 'jsx' ? 'component.jsx' : 'component.js',
-      language: detectLanguage(code),
-      content: code
+      name: detectLanguage(cleanCode) === 'typescript' ? 'component.tsx' : detectLanguage(cleanCode) === 'jsx' ? 'component.jsx' : 'component.js',
+      language: detectLanguage(cleanCode),
+      content: cleanCode
     });
   }
   
