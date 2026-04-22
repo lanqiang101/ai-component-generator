@@ -145,25 +145,7 @@ export interface AppState {
   getMergedCode: () => string;
   cancelMultiFileGeneration: () => void;
   // 加载生成的文件列表
-  loadGeneratedFiles: async (taskId: string) => {
-    try {
-      const response = await fetch(`/api/generate/${taskId}/files`);
-      const result = await response.json();
-      
-      if (!result.success) {
-        throw new Error(result.error);
-      }
-      
-      const files = result.files;
-      
-      set({
-        generatedFiles: files,
-        activeFilePath: files.length > 0 ? files[0].path : '',
-      });
-    } catch (err) {
-      console.error('加载文件列表失败:', err);
-    }
-  },
+  loadGeneratedFiles: (taskId: string) => Promise<void>;
 }
 
 // ====== 多文件组件化生成相关类型 ======
