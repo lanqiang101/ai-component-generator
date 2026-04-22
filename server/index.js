@@ -35,11 +35,8 @@ app.post('/api/generate', async (req, res) => {
       return res.status(400).json({ success: false, error: '缺少参数' });
     }
 
-    // 构建提示词
-    const prompt = buildPrompt(params);
-
-    // 调用 AI API
-    let result = await callAI(null, prompt);
+    // 调用 AI API,直接传递 params 对象
+    let result = await callAI(null, params);
     
     // 清理AI返回的代码：移除各种格式的Markdown标记
     if (result) {
@@ -185,10 +182,10 @@ app.get('/api/generate/:taskId/files', (req, res) => {
 
 // 内部函数: 分析组件架构
 async function analyzeComponentArchitecture(params) {
-  const prompt = buildArchitectureAnalysisPrompt(params);
-  const result = await callAI(null, prompt);
-  
   try {
+    const prompt = buildArchitectureAnalysisPrompt(params);
+    const result = await callAI(null, prompt);
+    
     // 解析 JSON
     let jsonStr = result.trim();
     const jsonMatch = result.match(/```(?:json)?\s*([\s\S]*?)```/);
@@ -216,7 +213,7 @@ async function analyzeComponentArchitecture(params) {
     
     return architecture;
   } catch (err) {
-    console.error('架构分析失败:', err);
+    console.error('⚠️ 架构分析失败,降级为单文件模式:', err.message);
     // 降级为单文件模式
     return {
       componentName: params.componentName,
@@ -245,11 +242,10 @@ async function executeMultiFileGeneration(taskId) {
     // 添加重试机制
     let code = null;
     let validation = null;
-    let currentPrompt = buildPrompt(params);
     const maxRetries = 2;
     
     for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
-      code = await callAI(null, currentPrompt);
+      code = await callAI(null, params);
       code = cleanGeneratedCode(code);
       
       // 验证代码完整性
@@ -263,8 +259,9 @@ async function executeMultiFileGeneration(taskId) {
         
         if (attempt <= maxRetries) {
           console.log(`🔄 尝试重新生成 (${attempt}/${maxRetries})...`);
-          // 在 prompt 中强调完整性要求
-          currentPrompt += '\n\n⚠️ 上次生成的代码不完整，请确保：\n' +
+          // 在 params 中添加重试提示
+          params.extraRequirements = (params.extraRequirements || '') + 
+                    '\n\n⚠️ 上次生成的代码不完整，请确保：\n' +
                     '- 所有括号正确闭合\n' +
                     '- 所有字符串完整\n' +
                     '- 最后一行是完整语句\n' +
@@ -786,42 +783,47 @@ function getUILibraryName(value) {
 
 /**
  * 调用 AI API
- * 使用 Cloudflare Pages Worker 代理请求，避免暴露 API Key
+ * @param {object|null} model - 模型配置(暂未使用)
+ * @param {object|string} paramsOrPrompt - 可以是 params 对象或 prompt 字符串
+ * @returns {Promise<string>} AI 生成的内容
  */
-async function callAI(model, prompt) {
-  // 根据环境变量选择代理 URL
-  // 本地开发默认使用测试环境的 Pages Functions
-  // 生产环境通过环境变量配置
+async function callAI(model, paramsOrPrompt) {
+  // 统一通过 Pages Functions 代理,避免直接调用 Worker 的网络问题
   const baseUrl = process.env.AI_PROXY_BASE_URL || 'https://daily-0-0-1.ai-component-generator.pages.dev';
-  const proxyUrl = `${baseUrl}/api/generate`;
-
+  
   const headers = {
     'Content-Type': 'application/json',
   };
 
-  // 注意: 测试环境当前的 /api/generate 期望的是旧格式
-  // 需要包装成 params 对象
-  const body = {
-    params: {
-      componentName: 'TempComponent',
-      description: prompt,  // 将 prompt 作为 description
-      framework: 'react-jsx',
-      componentType: 'other',
-      style: 'minimal',
-      dimensions: '',
-      needMockData: false,
-      interactive: false,
-      uiLibrary: 'none',
-      uiLibraryVersion: '',
-      stylePreprocessor: 'css',
-      extraRequirements: ''
-    }
-  };
+  let proxyUrl;
+  let body;
 
-  console.log('🤖 调用 AI API (通过 Pages Functions):', {
-    url: proxyUrl,
-    env: process.env.NODE_ENV || 'development'
-  });
+  // 判断是 params 对象还是 prompt 字符串
+  if (typeof paramsOrPrompt === 'string') {
+    // 模式 1: 传递 prompt 字符串,通过 Pages Functions 的 /api/chat 端点
+    proxyUrl = `${baseUrl}/api/chat`;
+    
+    // 构建标准的 Chat API 请求格式
+    body = {
+      messages: [
+        { role: 'user', content: paramsOrPrompt }
+      ]
+    };
+    
+    console.log('🤖 调用 AI API (Pages Functions - Chat 模式):', {
+      url: proxyUrl,
+      promptLength: paramsOrPrompt.length
+    });
+  } else {
+    // 模式 2: 传递 params 对象,调用 Pages Functions 的 /api/generate
+    proxyUrl = `${baseUrl}/api/generate`;
+    body = { params: paramsOrPrompt };
+    
+    console.log('🤖 调用 AI API (Pages Functions - Generate 模式):', {
+      url: proxyUrl,
+      componentName: paramsOrPrompt.componentName
+    });
+  }
 
   try {
     const response = await fetch(proxyUrl, {

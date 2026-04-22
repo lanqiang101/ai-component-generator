@@ -20,11 +20,7 @@ vars = { ENV_TYPE = "production" }
 [env.preview]
 vars = { ENV_TYPE = "preview" }
 
-# Git 自动部署配置
-[deploy]
-branch = "main"
-env = "production"
-
-[deploy.development]
-branch = "daily"
-env = "development"
+# 注意: Git 自动部署配置应在 Cloudflare Dashboard 中设置,而非在此文件中定义
+# 分支与环境的映射关系:
+# - main 分支 → production 环境
+# - daily 分支 → preview 环境
