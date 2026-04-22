@@ -36,6 +36,52 @@ const devicePresets: Record<DeviceType, { label: string; icon: typeof Monitor; r
   },
 };
 
+// 辅助函数: 检查常见的 AI 生成语法错误
+function checkCommonSyntaxErrors(code: string): string[] {
+  const errors: string[] = [];
+
+  // 1. 检测三元运算符中使用点号代替冒号的错误
+  // 错误示例: ...(isOutOfStock ? styles.outOfStockTag.inStockTag)
+  // 正确示例: ...(isOutOfStock ? styles.outOfStockTag : styles.inStockTag)
+  const ternaryDotPattern = /\?\s*\w+\.\w+\.\w+\s*[,\)}]/g;
+  const ternaryMatches = code.match(ternaryDotPattern);
+  if (ternaryMatches) {
+    ternaryMatches.forEach((match) => {
+      // 提取行号
+      const lines = code.substring(0, code.indexOf(match)).split('\n');
+      const lineNumber = lines.length;
+      errors.push(
+        `第 ${lineNumber} 行: 三元运算符语法错误 "${match.trim()}"，应该是 "? value1 : value2" 而不是 "? obj1.obj2"`
+      );
+    });
+  }
+
+  // 2. 检测未闭合的括号 (简单检测)
+  const openParens = (code.match(/\(/g) || []).length;
+  const closeParens = (code.match(/\)/g) || []).length;
+  if (openParens !== closeParens) {
+    errors.push(`括号不匹配: ${openParens} 个 "(" 但只有 ${closeParens} 个 ")"`);
+  }
+
+  const openBraces = (code.match(/\{/g) || []).length;
+  const closeBraces = (code.match(/\}/g) || []).length;
+  if (openBraces !== closeBraces) {
+    errors.push(`大括号不匹配: ${openBraces} 个 "{" 但只有 ${closeBraces} 个 "}"`);
+  }
+
+  // 3. 检测常见的事件处理器类型注解错误
+  // 错误示例: (e.MouseEvent) => 应该是 (e: MouseEvent) =>
+  const wrongEventTypePattern = /\(\w+\.MouseEvent\)/g;
+  const eventTypeMatches = code.match(wrongEventTypePattern);
+  if (eventTypeMatches) {
+    errors.push(
+      `发现类型注解语法错误: ${eventTypeMatches.join(', ')}。前端渲染不支持 TypeScript，应移除类型注解。`
+    );
+  }
+
+  return errors;
+}
+
 // 简单的语法检查函数
 function validateCode(code: string): { valid: boolean; error?: string } {
   if (!code || code.trim().length === 0) {
@@ -360,94 +406,66 @@ ${code}
     return "App";
   }
 
-  // 预处理代码，使其能在浏览器中运行
-  function preprocessCodeForBrowser(code: string): string {
+  // 预处理代码: 移除类型注解、导入语句等,使其能在浏览器中运行
+  const preprocessCodeForBrowser = (code: string): string => {
     let processed = code;
 
-    // 0. 如果是多文件结构，只提取主组件文件的内容
-    const fileRegex =
-      /\/\/\s*======\s*FILE:\s*([^\n]+)\s*======([\s\S]*?)(?=\/\/\s*======\s*FILE:|$)/g;
-    const files: { name: string; content: string }[] = [];
-    let match;
-
-    while ((match = fileRegex.exec(code)) !== null) {
-      files.push({
-        name: match[1].trim(),
-        content: match[2].trim(),
-      });
-    }
-
-    // 如果找到了多个文件，合并所有内容（子组件在前，主组件在后）
-    if (files.length > 1) {
-      // 按照文件名排序，确保子组件在前，主组件在后
-      const sortedFiles = files.sort((a, b) => {
-        // component.tsx 或 index.tsx 放在最后
-        if (a.name.includes("component") || a.name.includes("index")) return 1;
-        if (b.name.includes("component") || b.name.includes("index")) return -1;
-        return 0;
-      });
-
-      // 合并所有文件内容
-      processed = sortedFiles.map((f) => f.content).join("\n\n");
+    // ⚠️ 语法检查: 在预处理之前先检测常见语法错误
+    const syntaxErrors = checkCommonSyntaxErrors(processed);
+    if (syntaxErrors.length > 0) {
+      console.error('⚠️ 检测到语法错误:', syntaxErrors);
+      // 抛出错误,让上层处理
+      throw new Error(
+        `代码包含语法错误:\n${syntaxErrors.map((err, i) => `${i + 1}. ${err}`).join('\n')}\n\n请重新生成代码。`
+      );
     }
 
     // 1. 移除 export default
-    processed = processed.replace(/export\s+default\s+/g, "");
+    processed = processed.replace(/export default /g, '');
 
-    // 2. 移除 named exports
-    processed = processed.replace(
-      /export\s+(const|let|var|function|class|interface|type)\s+/g,
-      "$1 ",
-    );
+    // 2. 移除 Markdown 代码块标记
+    processed = processed.replace(/```(?:tsx|typescript|javascript|jsx|vue)?\n?/gi, '');
+    processed = processed.replace(/\n?```\s*$/g, '');
 
-    // 3. 移除 export { ... } 语句
-    processed = processed.replace(/export\s*\{[^}]*\}\s*;?/g, "");
+    // 3. 移除结束标记
+    processed = processed.replace(/\/\/ \[END_OF_CODE\]/g, '');
+    processed = processed.replace(/\/\/ \[FILE_END\]/g, '');
 
     // 4. 处理 import 语句
-    // 4.1 提取 React Hooks (useState, useEffect 等)
-    const reactHooksMatch = processed.match(
-      /import\s+\{([^}]+)\}\s+from\s+['"]react['"]/,
+    // 4.1 移除 React 导入,但保留 React 命名空间的使用
+    processed = processed.replace(/import\s+React\s+from\s+['"]react['"]\s*;?/g, '');
+
+    // 4.2 移除 React hooks 的解构导入,替换为 React.useState 等
+    const hooks = [
+      'useState',
+      'useEffect',
+      'useCallback',
+      'useMemo',
+      'useRef',
+      'useContext',
+      'useReducer',
+      'useLayoutEffect',
+    ];
+
+    // 先提取所有 React hooks 的导入
+    const reactImportMatch = processed.match(
+      /import\s+\{([^}]+)\}\s+from\s+['"]react['"]\s*;?/
     );
-    if (reactHooksMatch) {
-      const hooks = reactHooksMatch[1].split(",").map((h) => h.trim());
-      // 将 import { useState, useEffect } from 'react' 转换为注释
+    if (reactImportMatch) {
+      const importedHooks = reactImportMatch[1]
+        .split(',')
+        .map((h: string) => h.trim())
+        .filter((h: string) => hooks.includes(h));
+
+      // 移除 React 导入行
       processed = processed.replace(
         /import\s+\{[^}]+\}\s+from\s+['"]react['"]\s*;?/g,
-        "// React import removed - using global React object",
+        ''
       );
 
-      // 将代码中的 useState, useEffect 等替换为 React.useState, React.useEffect
-      hooks.forEach((hook) => {
-        // 使用单词边界匹配，避免替换部分匹配
-        const regex = new RegExp(`\\b${hook}\\b`, "g");
-        processed = processed.replace(regex, `React.${hook}`);
-      });
-    }
-
-    // 4.2 处理 default import: import React from 'react'
-    const reactDefaultMatch = processed.match(
-      /import\s+React\s+from\s+['"]react['"]/,
-    );
-    if (reactDefaultMatch) {
-      processed = processed.replace(
-        /import\s+React\s+from\s+['"]react['"]\s*;?/g,
-        "// React import removed - using global React object",
-      );
-    }
-
-    // 4.3 处理混合 import: import React, { useState } from 'react'
-    const reactMixedMatch = processed.match(
-      /import\s+React\s*,\s*\{([^}]+)\}\s+from\s+['"]react['"]/,
-    );
-    if (reactMixedMatch) {
-      const hooks = reactMixedMatch[1].split(",").map((h) => h.trim());
-      processed = processed.replace(
-        /import\s+React\s*,\s*\{[^}]+\}\s+from\s+['"]react['"]\s*;?/g,
-        "// React import removed - using global React object",
-      );
-
-      hooks.forEach((hook) => {
-        const regex = new RegExp(`\\b${hook}\\b`, "g");
+      // 将使用的 hooks 替换为 React.hook 形式
+      importedHooks.forEach((hook: string) => {
+        const regex = new RegExp(`\\b${hook}\\b`, 'g');
         processed = processed.replace(regex, `React.${hook}`);
       });
     }
@@ -763,7 +781,7 @@ root.render(<${componentName} />);
                 setPreviewResolution(value as PreviewResolution)
               }
             >
-              <Select.Trigger className="inline-flex items-center justify-between px-3 py-1.5 text-sm rounded-md border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 min-w-[180px] transition-colors duration-150">
+              <Select.Trigger className="inline-flex items-center justify-between px-3 py-1.5 text-sm rounded-md border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-50 min-w-[180px] transition-colors duration-150">
                 <Select.Value placeholder="选择设备尺寸" />
                 <Select.Icon className="ml-2">
                   <ChevronDown size={14} />

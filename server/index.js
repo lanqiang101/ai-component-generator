@@ -1450,46 +1450,37 @@ const styles = {
 return <div style={styles.container}>...</div>;
 \`\`\`
 
-**⚠️ 条件样式的正确写法（严格遵守）**:
+**⚠️ 条件样式的正确写法 (CRITICAL - 必须遵守!)**:
 
 \`\`\`javascript
-// ❌ 绝对禁止的写法 1：三元表达式缺少 else 分支
+// ❌ 绝对禁止：三元运算符中使用点号代替冒号
+style={{
+  ...styles.stockTag,
+  ...(isOutOfStock ? styles.outOfStockTag.inStockTag),  // ← 致命错误! 应该是冒号不是点号
+}}
+
+// ✅ 正确方式 1：完整的三元表达式（推荐）
+style={{
+  ...styles.stockTag,
+  ...(isOutOfStock ? styles.outOfStockTag : styles.inStockTag),
+}}
+
+// ✅ 正确方式 2：逻辑与运算符
 style={{
   ...styles.buttonBase,
-  ...(isDisabled ? styles.disabled),  // ← 语法错误！缺少冒号和 else
+  ...(isDisabled && styles.disabled),
 }}
 
-// ❌ 绝对禁止的写法 2：错误的嵌套属性访问
-style={{
-  ...styles.stockStatus,
-  ...(isInStock ? styles.a.b : styles.c.d),  // ← 语法错误！
-}}
-
-// ✅ 正确方式 1：三元表达式必须有完整的 if-else（推荐用于二选一）
-style={{
-  ...styles.base,
-  ...(isActive ? styles.active : styles.inactive),  // ← 必须有两个值
-}}
-
-// ✅ 正确方式 2：使用逻辑与 &&（推荐用于有条件地添加）
-style={{
-  ...styles.base,
-  ...(isDisabled && styles.disabled),  // ← 简洁安全
-}}
-
-// ✅ 正确方式 3：直接在 style 属性上使用三元表达式
-style={isDisabled ? styles.disabled : styles.base}
-
-// ✅ 正确方式 4：提取为变量
-const statusStyle = isInStock ? styles.inStock : styles.outOfStock;
-<span style={{ ...styles.stockStatus, ...statusStyle }}>
+// ✅ 正确方式 3：条件赋值
+const tagStyle = isOutOfStock ? styles.outOfStockTag : styles.inStockTag;
+return <span style={{ ...styles.stockTag, ...tagStyle }}>标签</span>;
 \`\`\`
 
-**🚨 关键规则（必须遵守）**:
-1. **三元表达式必须完整**: \`condition ? value1 : value2\` - **绝不能省略 \`: value2\`**
-2. **禁止嵌套属性链式访问**: 不要用 \`styles.a.b.c\`,使用 \`styles.a\` 或 \`styles.b\`
-3. **展开运算符后必须是完整表达式**: \`...(expr)\` 中的 expr 必须能独立求值
-4. **优先使用逻辑与 &&**: 比三元表达式更简洁、更安全
+**自我检查清单**:
+1. 所有三元运算符必须包含 \`?\` 和 \`:\` 两个符号
+2. 绝对不要使用 \`.\` 代替 \`:\`
+3. 展开运算符 \`...()\` 内部必须是合法的对象或 \`undefined\`
+4. 生成代码后,逐行检查所有三元表达式的语法
 
 ### 5. 代码完整性要求
 - ✅ **所有括号必须闭合**: (), {}, <>
