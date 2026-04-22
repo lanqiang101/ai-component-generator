@@ -2,7 +2,6 @@ import React, { useState, useMemo, useCallback } from "react";
 import type { PreviewResolution } from "../types";
 import {
   resolutionPresets,
-  resolutionListGrouped,
 } from "../constants/resolutions";
 import { useStore } from "../store/useStore";
 import * as Select from "@radix-ui/react-select";
@@ -12,10 +11,30 @@ import {
   Monitor,
   Smartphone,
   Tablet,
-  Tv,
-  Laptop,
   AlertCircle,
 } from "lucide-react";
+
+// 设备类型定义
+type DeviceType = 'desktop' | 'tablet' | 'mobile';
+
+// 设备类型配置
+const devicePresets: Record<DeviceType, { label: string; icon: typeof Monitor; resolutions: PreviewResolution[] }> = {
+  desktop: {
+    label: '桌面',
+    icon: Monitor,
+    resolutions: ['full', 'laptop', 'desktop', 'surface-pro7'],
+  },
+  tablet: {
+    label: '平板',
+    icon: Tablet,
+    resolutions: ['ipad-mini', 'ipad-air', 'ipad-pro', 'surface-duo'],
+  },
+  mobile: {
+    label: '手机',
+    icon: Smartphone,
+    resolutions: ['iphone-se', 'iphone-xr', 'iphone-12-pro', 'iphone-14-pro-max', 'pixel-7', 'pixel-7-pro'],
+  },
+};
 
 // 简单的语法检查函数
 function validateCode(code: string): { valid: boolean; error?: string } {
@@ -128,6 +147,18 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
   // 新增：代码粘贴测试功能
   const [testCode, setTestCode] = useState<string>("");
   const [showTestArea, setShowTestArea] = useState<boolean>(false);
+  
+  // 设备切换状态
+  const [deviceType, setDeviceType] = useState<DeviceType>(() => {
+    // 根据当前分辨率初始化设备类型
+    if (resolution === 'full' || resolution.includes('macbook') || resolution.includes('surface')) {
+      return 'desktop';
+    }
+    if (resolution.includes('ipad') || resolution.includes('surface-go')) {
+      return 'tablet';
+    }
+    return 'mobile';
+  });
 
   const preset = resolutionPresets[resolution];
 
@@ -544,18 +575,6 @@ ${code}
     return processed;
   }
 
-  // 获取分类标签
-  const getCategoryLabel = (category: string) => {
-    const labels: Record<string, string> = {
-      mobile: "手机设备",
-      tablet: "平板设备",
-      desktop: "桌面显示器",
-      laptop: "笔记本电脑",
-      tv: "电视屏幕",
-    };
-    return labels[category] || category;
-  };
-
   // 计算容器样式 - 确保内容完整展示
   // 如果用户没有设置尺寸规格，使用自适应模式
   const isAdaptive = preset.width === "100%";
@@ -696,9 +715,47 @@ root.render(<${componentName} />);
       {/* 顶部工具栏 */}
       <div className="px-4 py-3 border-b border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
         <div className="flex items-center justify-between mb-3">
+          {/* 左侧：设备类型切换 */}
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-600 dark:text-gray-400">
-              预览尺寸：
+              设备：
+            </span>
+            <div className="flex gap-1 bg-gray-100 dark:bg-slate-700 rounded-lg p-1">
+              {(Object.keys(devicePresets) as DeviceType[]).map((type) => {
+                const config = devicePresets[type];
+                const Icon = config.icon;
+                const isActive = deviceType === type;
+                
+                return (
+                  <button
+                    key={type}
+                    onClick={() => {
+                      setDeviceType(type);
+                      // 切换到该设备的第一个分辨率
+                      if (config.resolutions.length > 0) {
+                        setPreviewResolution(config.resolutions[0]);
+                      }
+                    }}
+                    className={`
+                      flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-150
+                      ${isActive 
+                        ? 'bg-white dark:bg-slate-600 text-blue-600 dark:text-blue-400 shadow-sm' 
+                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-white/50 dark:hover:bg-slate-600/50'
+                      }
+                    `}
+                  >
+                    <Icon size={16} />
+                    <span>{config.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          
+          {/* 右侧：具体设备尺寸选择 */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600 dark:text-gray-400">
+              尺寸：
             </span>
             <Select.Root
               value={resolution}
@@ -707,7 +764,7 @@ root.render(<${componentName} />);
               }
             >
               <Select.Trigger className="inline-flex items-center justify-between px-3 py-1.5 text-sm rounded-md border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 min-w-[180px] transition-colors duration-150">
-                <Select.Value placeholder="选择分辨率" />
+                <Select.Value placeholder="选择设备尺寸" />
                 <Select.Icon className="ml-2">
                   <ChevronDown size={14} />
                 </Select.Icon>
@@ -720,40 +777,22 @@ root.render(<${componentName} />);
                   sideOffset={5}
                 >
                   <Select.Viewport className="p-1">
-                    {resolutionListGrouped.map((group) => (
-                      <Select.Group key={group.category}>
-                        <Select.Label className="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center">
-                          {group.category === "phones" && (
-                            <Smartphone className="w-4 h-4 mr-2" />
-                          )}
-                          {group.category === "tablets" && (
-                            <Tablet className="w-4 h-4 mr-2" />
-                          )}
-                          {group.category === "computers" && (
-                            <Monitor className="w-4 h-4 mr-2" />
-                          )}
-                          {group.category === "displays" && (
-                            <Tv className="w-4 h-4 mr-2" />
-                          )}
-                          {group.category === "standard" && (
-                            <Laptop className="w-4 h-4 mr-2" />
-                          )}
-                          {getCategoryLabel(group.category)}
-                        </Select.Label>
-                        {group.items.map((item) => (
-                          <Select.Item
-                            key={item.key}
-                            value={item.key}
-                            className="relative flex items-center px-3 py-2 rounded-md text-sm cursor-pointer select-none outline-none data-[highlighted]:bg-blue-50 dark:data-[highlighted]:bg-blue-900/20 data-[highlighted]:text-blue-700 dark:data-[highlighted]:text-blue-300 data-[state=checked]:bg-blue-50 dark:data-[state=checked]:bg-blue-900/20 data-[state=checked]:text-blue-700 dark:data-[state=checked]:text-blue-300 transition-colors duration-150"
-                          >
-                            <Select.ItemText>{item.label}</Select.ItemText>
-                            <Select.ItemIndicator className="absolute right-2">
-                              <Check size={14} />
-                            </Select.ItemIndicator>
-                          </Select.Item>
-                        ))}
-                      </Select.Group>
-                    ))}
+                    {/* 只显示当前设备类型的分辨率 */}
+                    {devicePresets[deviceType].resolutions.map((resKey) => {
+                      const item = resolutionPresets[resKey];
+                      return (
+                        <Select.Item
+                          key={item.key}
+                          value={item.key}
+                          className="relative flex items-center px-3 py-2 rounded-md text-sm cursor-pointer select-none outline-none data-[highlighted]:bg-blue-50 dark:data-[highlighted]:bg-blue-900/20 data-[highlighted]:text-blue-700 dark:data-[highlighted]:text-blue-300 data-[state=checked]:bg-blue-50 dark:data-[state=checked]:bg-blue-900/20 data-[state=checked]:text-blue-700 dark:data-[state=checked]:text-blue-300 transition-colors duration-150"
+                        >
+                          <Select.ItemText>{item.label}</Select.ItemText>
+                          <Select.ItemIndicator className="absolute right-2">
+                            <Check size={14} />
+                          </Select.ItemIndicator>
+                        </Select.Item>
+                      );
+                    })}
                   </Select.Viewport>
                 </Select.Content>
               </Select.Portal>

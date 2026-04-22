@@ -860,21 +860,30 @@ app.post('/api/refine-requirements', async (req, res) => {
       return res.status(400).json({ success: false, error: '缺少参数' });
     }
 
-    // 构建需求整理提示词
-    const prompt = buildRefinementPrompt(params);
+    // 直接代理到 Pages Functions
+    const baseUrl = process.env.AI_PROXY_BASE_URL || 'https://daily-0-0-1.ai-component-generator.pages.dev';
+    const proxyUrl = `${baseUrl}/api/refine-requirements`;
 
-    // 调用 AI API
-    const result = await callAI(null, prompt);
-    
-    // 解析 AI 返回的结构化数据
-    const refinedRequirements = parseRefinedRequirements(result);
-    
-    res.json({ 
-      success: true, 
-      data: {
-        refinedRequirements,
-      } 
+    console.log('🤖 代理需求整理请求到 Pages Functions:', {
+      url: proxyUrl,
+      env: process.env.NODE_ENV || 'development'
     });
+
+    const response = await fetch(proxyUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ params }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Pages Functions 请求失败: ${response.status} ${errorText}`);
+    }
+
+    const data = await response.json();
+    res.json(data);
   } catch (err) {
     console.error('需求整理失败:', err);
     res.status(500).json({ success: false, error: err.message });
@@ -1047,18 +1056,30 @@ app.post('/api/expand-description', async (req, res) => {
       return res.status(400).json({ success: false, error: '缺少描述内容' });
     }
 
-    // 构建扩写提示词
-    const prompt = buildExpandPrompt(description, componentName);
+    // 直接代理到 Pages Functions
+    const baseUrl = process.env.AI_PROXY_BASE_URL || 'https://daily-0-0-1.ai-component-generator.pages.dev';
+    const proxyUrl = `${baseUrl}/api/expand-description`;
 
-    // 调用 AI API
-    const expandedDescription = await callAI(null, prompt);
-    
-    res.json({ 
-      success: true, 
-      data: {
-        expandedDescription: expandedDescription,
-      } 
+    console.log('🤖 代理扩写请求到 Pages Functions:', {
+      url: proxyUrl,
+      env: process.env.NODE_ENV || 'development'
     });
+
+    const response = await fetch(proxyUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ description, componentName }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Pages Functions 请求失败: ${response.status} ${errorText}`);
+    }
+
+    const data = await response.json();
+    res.json(data);
   } catch (err) {
     console.error('扩写失败:', err);
     res.status(500).json({ success: false, error: err.message });

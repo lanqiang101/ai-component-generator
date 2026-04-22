@@ -7,10 +7,12 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 3000,
+    strictPort: true, // 如果 3000 被占用,直接报错而不是自动切换
     proxy: {
       '/api': {
         target: 'http://localhost:3001',
         changeOrigin: true,
+        secure: false,
       },
     },
   },
