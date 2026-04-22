@@ -1,9 +1,9 @@
 import React, { useMemo } from 'react';
 import { useStore } from '../store/useStore';
-import { Loader2, AlertCircle, CheckCircle2, FileCode2, Package, Code2, Sparkles, Layers } from 'lucide-react';
+import { Loader2, AlertCircle, CheckCircle2, Package, Code2, Sparkles, Layers } from 'lucide-react';
 
 // 步骤配置
-const stepConfig: Record<string, { label: string; icon: React.ComponentType<{ size?: number; className?: string }> }> = {
+const stepConfig: Record<string, { label: string; icon: any }> = {
   analyzing: {
     label: '分析需求',
     icon: Sparkles,

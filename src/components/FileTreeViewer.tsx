@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { File, Folder, ChevronRight, ChevronDown } from 'lucide-react';
 import { cn } from '../utils/cn';
 
@@ -164,6 +164,7 @@ export function FileTreeViewer({ files, activeFilePath, onFileSelect }: FileTree
           <TreeNode
             key={node.path}
             node={node}
+            depth={0}
             activeFilePath={activeFilePath}
             onFileSelect={onFileSelect}
           />
