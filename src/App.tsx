@@ -1,45 +1,11 @@
-import { useEffect } from "react";
-import {
-  createBrowserRouter,
-  RouterProvider,
-} from "react-router-dom";
+import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { HomePage } from "./pages/HomePage";
 import { useStore } from "./store/useStore";
 import { PenTool, Moon, Sun, Monitor } from "lucide-react";
 import { Tooltip } from "./components/ui/Tooltip";
 
 function Layout() {
-  const { darkMode, toggleDarkMode, loadModels, loadSystemConfig } = useStore();
-
-  // 加载数据
-  useEffect(() => {
-    loadModels();
-    loadSystemConfig();
-  }, [loadModels, loadSystemConfig]);
-
-  // 处理暗黑模式
-  useEffect(() => {
-    const root = document.documentElement;
-    if (darkMode === "auto") {
-      root.classList.remove("dark");
-    } else if (darkMode) {
-      root.classList.add("dark");
-      root.style.setProperty("--bg-gradient-from", "#0f172a");
-      root.style.setProperty("--bg-gradient-to", "#020617");
-      root.style.setProperty("--card-bg", "#1e293b");
-      root.style.setProperty("--text-primary", "#f1f5f9");
-      root.style.setProperty("--text-secondary", "#cbd5e1");
-      root.style.setProperty("--border-color", "#334155");
-    } else {
-      root.classList.remove("dark");
-      root.style.removeProperty("--bg-gradient-from");
-      root.style.removeProperty("--bg-gradient-to");
-      root.style.removeProperty("--card-bg");
-      root.style.removeProperty("--text-primary");
-      root.style.removeProperty("--text-secondary");
-      root.style.removeProperty("--border-color");
-    }
-  }, [darkMode]);
+  const { darkMode, toggleDarkMode } = useStore();
 
   const getDarkModeIcon = () => {
     if (darkMode === "auto") return <Monitor size={20} />;
@@ -73,39 +39,6 @@ function Layout() {
                 </div>
               </div>
             </div>
-
-            {/* <nav className="hidden md:flex items-center gap-1">
-              <a
-                href="/"
-                className={`px-3 py-2 text-sm font-medium rounded-md transition-all ${
-                  location.pathname === '/'
-                    ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800'
-                }`}
-              >
-                生成器
-              </a>
-              <a
-                href="/config"
-                className={`px-3 py-2 text-sm font-medium rounded-md transition-all ${
-                  location.pathname === '/config'
-                    ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800'
-                }`}
-              >
-                模型配置
-              </a>
-              <a
-                href="/models"
-                className={`px-3 py-2 text-sm font-medium rounded-md transition-all ${
-                  location.pathname === '/models'
-                    ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800'
-                }`}
-              >
-                模型管理
-              </a>
-            </nav> */}
 
             <div className="flex items-center gap-2">
               {/* Dark mode toggle */}
@@ -182,7 +115,8 @@ function Layout() {
 
           {/* Copyright */}
           <p className="text-xs text-gray-400 dark:text-gray-500">
-            © {new Date().getFullYear()} AI Component Generator. All rights reserved.
+            © {new Date().getFullYear()} AI Component Generator. All rights
+            reserved.
           </p>
         </div>
       </footer>

@@ -1,34 +1,7 @@
 
 import { create } from 'zustand';
-import type { AppState, ModelConfig, PreviewResolution, SystemConfig, RefinedRequirements } from '../types';
+import type { AppState, PreviewResolution, RefinedRequirements } from '../types';
 import { defaultComponentParams } from '../types/defaults';
-
-const STORAGE_KEYS = {
-  models: 'aicg-models',
-  systemConfig: 'aicg-system-config',
-};
-
-// Load from localStorage
-function loadFromStorage<T>(key: string, defaultValue: T): T {
-  try {
-    const stored = localStorage.getItem(key);
-    if (stored) {
-      return JSON.parse(stored);
-    }
-  } catch (err) {
-    console.error('Failed to load from localStorage:', err);
-  }
-  return defaultValue;
-}
-
-// Save to localStorage
-function saveToStorage(key: string, data: any): void {
-  try {
-    localStorage.setItem(key, JSON.stringify(data));
-  } catch (err) {
-    console.error('Failed to save to localStorage:', err);
-  }
-}
 
 // ====== 辅助函数 (在 store 外部定义) ======
 
@@ -321,30 +294,6 @@ export const useStore = create<AppState>((set, get) => ({
     } else {
       set({ darkMode: 'auto' });
     }
-  },
-
-  // Models & Config - loaded from localStorage
-  models: loadFromStorage<ModelConfig[]>(STORAGE_KEYS.models, []),
-  systemConfig: loadFromStorage<SystemConfig | null>(STORAGE_KEYS.systemConfig, null),
-
-  loadModels: () => {
-    const models = loadFromStorage<ModelConfig[]>(STORAGE_KEYS.models, []);
-    set({ models });
-  },
-
-  loadSystemConfig: () => {
-    const config = loadFromStorage<SystemConfig | null>(STORAGE_KEYS.systemConfig, null);
-    set({ systemConfig: config });
-  },
-
-  saveModels: () => {
-    const { models } = get();
-    saveToStorage(STORAGE_KEYS.models, models);
-  },
-
-  saveSystemConfig: () => {
-    const { systemConfig } = get();
-    saveToStorage(STORAGE_KEYS.systemConfig, systemConfig);
   },
 
   // Generation parameters
@@ -822,9 +771,15 @@ export const useStore = create<AppState>((set, get) => ({
         if (task.status === 'completed') {
           clearInterval(pollInterval);
           await get().loadGeneratedFiles(generationTaskId);
+          // 设置生成状态为false
+          set({ generation: { ...get().generation, isGenerating: false } });
         } else if (task.status === 'failed') {
           clearInterval(pollInterval);
           console.error('生成任务失败:', task.error);
+          // 设置生成状态为false并记录错误
+          set({ 
+            generation: { ...get().generation, isGenerating: false, error: task.error || '生成失败' }
+          });
         }
       } catch (err) {
         console.error('轮询进度失败:', err);
