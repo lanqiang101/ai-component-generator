@@ -195,33 +195,64 @@ async function analyzeComponentArchitecture(params) {
     
     const architecture = JSON.parse(jsonStr);
     
-    // 判断生成模式
-    const estimatedLines = architecture.estimatedTotalLines || 100;
-    const isComplex = estimatedLines > 100 || (architecture.subComponents && architecture.subComponents.length > 0);
+    // ⚠️ 固定使用多文件生成模式
+    architecture.generationMode = 'multi-file';
     
-    architecture.generationMode = isComplex ? 'multi-file' : 'single-file';
-    architecture.complexity = estimatedLines > 200 ? 'complex' : (estimatedLines > 100 ? 'medium' : 'simple');
-    architecture.totalFiles = isComplex ? (architecture.subComponents?.length || 0) + 2 : 1; // 子组件 + 主组件 + utils
-    architecture.estimatedTotalLines = estimatedLines;
+    // 确保至少生成 2 个文件（主组件 + 至少 1 个子组件）
+    const subComponentsCount = architecture.subComponents?.length || 0;
+    
+    // 如果 AI 未返回子组件，自动生成一个默认子组件
+    if (subComponentsCount === 0) {
+      architecture.subComponents = [
+        {
+          id: 'comp1',
+          name: `${params.componentName || 'Component'}Content`,
+          filePath: `components/${params.componentName || 'Component'}Content.tsx`,
+          purpose: '组件主要内容区域',
+          props: [],
+          estimatedLines: 80,
+          priority: 1
+        }
+      ];
+    }
+    
+    architecture.totalFiles = 1 + (architecture.subComponents?.length || 0); // 主组件 + 子组件
+    architecture.estimatedTotalLines = architecture.estimatedTotalLines || 150;
     
     console.log('✅ 架构分析完成:', {
       mode: architecture.generationMode,
-      complexity: architecture.complexity,
       files: architecture.totalFiles,
+      subComponents: architecture.subComponents.length,
       lines: architecture.estimatedTotalLines
     });
     
     return architecture;
   } catch (err) {
-    console.error('⚠️ 架构分析失败,降级为单文件模式:', err.message);
-    // 降级为单文件模式
+    console.error('⚠️ 架构分析失败,使用默认多文件模式:', err.message);
+    // 降级为默认多文件模式
     return {
       componentName: params.componentName,
       description: params.description,
-      complexity: 'simple',
-      generationMode: 'single-file',
-      totalFiles: 1,
-      estimatedTotalLines: 80
+      generationMode: 'multi-file',
+      totalFiles: 2,
+      estimatedTotalLines: 150,
+      subComponents: [
+        {
+          id: 'comp1',
+          name: `${params.componentName || 'Component'}Content`,
+          filePath: `components/${params.componentName || 'Component'}Content.tsx`,
+          purpose: '组件主要内容区域',
+          props: [],
+          estimatedLines: 80,
+          priority: 1
+        }
+      ],
+      utilityFunctions: [],
+      mainComponent: {
+        filePath: 'index.tsx',
+        dependencies: [`${params.componentName || 'Component'}Content`],
+        estimatedLines: 70
+      }
     };
   }
 }
@@ -235,62 +266,10 @@ async function executeMultiFileGeneration(taskId) {
   
   const { architecture, params } = task;
   
-  // 如果是单文件模式,直接使用原有逻辑
-  if (architecture.generationMode === 'single-file') {
-    task.status = 'generating';
-    
-    // 添加重试机制
-    let code = null;
-    let validation = null;
-    const maxRetries = 2;
-    
-    for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
-      code = await callAI(null, params);
-      code = cleanGeneratedCode(code);
-      
-      // 验证代码完整性
-      validation = validateCodeCompleteness(code);
-      
-      if (validation.valid) {
-        console.log('✅ 代码完整性验证通过');
-        break;
-      } else {
-        console.warn(`⚠️ 第 ${attempt} 次尝试代码不完整:`, validation.issues.join(', '));
-        
-        if (attempt <= maxRetries) {
-          console.log(`🔄 尝试重新生成 (${attempt}/${maxRetries})...`);
-          // 在 params 中添加重试提示
-          params.extraRequirements = (params.extraRequirements || '') + 
-                    '\n\n⚠️ 上次生成的代码不完整，请确保：\n' +
-                    '- 所有括号正确闭合\n' +
-                    '- 所有字符串完整\n' +
-                    '- 最后一行是完整语句\n' +
-                    '- 末尾添加 // [FILE_END] 标记';
-        } else {
-          console.warn('❌ 达到最大重试次数，使用当前代码');
-        }
-      }
-    }
-    
-    task.files = [{
-      path: 'index.tsx',
-      name: 'index.tsx',
-      code: code,
-      status: 'completed',
-      generatedAt: new Date(),
-      validation: validation
-    }];
-    
-    task.status = 'completed';
-    task.progress = 100;
-    task.completedAt = new Date();
-    
-    console.log('✅ 单文件生成完成');
-    return;
-  }
+  // ⚠️ 现在只有多文件模式，移除单文件模式判断
   
   // 多文件模式:逐个生成
-  task.status = 'filling';
+  task.status = 'generating';
   
   // 1. 生成工具函数(如果有)
   if (architecture.utilityFunctions && architecture.utilityFunctions.length > 0) {
@@ -1119,139 +1098,99 @@ function buildArchitectureAnalysisPrompt(params) {
   
   return `# 组件架构分析任务
 
-请深入分析以下组件需求，设计合理的组件架构和文件结构。
+请深入分析以下组件需求，设计合理的**多文件组件架构**。
 
 ## 组件信息
 - **名称**: ${componentName}
 - **类型**: ${componentType || '通用组件'}
 - **描述**: ${description}
 
-## 复杂度评估标准
+## ⚠️ 重要：强制多文件生成模式
 
-### 🟢 简单组件 (single-file, <100行)
-**特征**:
-- 功能单一，无复杂交互
-- 无需内部状态管理或仅有简单状态
-- 不涉及数据转换或业务逻辑
-- 示例: Button, Badge, Icon, Label
+**本项目固定使用多文件组件化方案**，无论组件简单或复杂，都必须拆分为多个文件。
 
-**文件结构**: 
-\`\`\`
-index.tsx (主组件，包含所有逻辑)
-\`\`\`
-
-### 🟡 中等组件 (multi-file, 100-250行)
-**特征**:
-- 包含2-3个可复用的UI片段
-- 需要简单的工具函数（格式化、验证等）
-- 有明确的状态管理需求
-- 示例: Card, FormInput, Dropdown
-
-**文件结构**:
+### 最小文件结构（至少 2 个文件）
 \`\`\`
 index.tsx (主组件)
-components/ChildComponent1.tsx (子组件1)
-utils/helper.ts (工具函数，可选)
+components/${componentName || 'Component'}Content.tsx (内容子组件)
 \`\`\`
 
-### 🔴 复杂组件 (multi-file, >250行)
-**特征**:
-- 包含4+个独立的功能模块
-- 需要多个工具函数和辅助方法
-- 复杂的状态管理和数据流
-- 示例: DataTable, Dashboard, WizardForm
-
-**文件结构**:
+### 推荐的多文件结构
 \`\`\`
-index.tsx (主组件)
-components/Header.tsx
-components/Body.tsx
-components/Footer.tsx
-utils/formatters.ts
-utils/validators.ts
+index.tsx (主组件 - 负责状态管理和组合子组件)
+components/Header.tsx (头部子组件)
+components/Body.tsx (主体子组件)
+components/Footer.tsx (底部子组件)
+utils/helpers.ts (工具函数，可选)
 \`\`\`
 
 ## 输出格式（严格 JSON）
 
-### 简单组件示例：
 {
   "componentName": "${componentName}",
   "description": "简洁的组件描述",
-  "complexity": "simple",
-  "generationMode": "single-file",
-  "estimatedTotalLines": 80,
-  "subComponents": [],
-  "utilityFunctions": [],
-  "mainComponent": {
-    "filePath": "index.tsx",
-    "dependencies": [],
-    "estimatedLines": 80
-  }
-}
-
-### 复杂组件示例：
-{
-  "componentName": "${componentName}",
-  "description": "详细的组件描述",
-  "complexity": "medium",
   "generationMode": "multi-file",
-  "estimatedTotalLines": 220,
+  "estimatedTotalLines": 150,
   "subComponents": [
     {
       "id": "comp1",
-      "name": "ProductImage",
-      "filePath": "components/ProductImage.tsx",
-      "purpose": "展示商品图片，支持懒加载和错误处理",
-      "props": ["src", "alt", "fallbackSrc"],
+      "name": "${componentName}Header",
+      "filePath": "components/${componentName}Header.tsx",
+      "purpose": "组件头部区域，展示标题和主要操作",
+      "props": ["title", "onAction"],
       "estimatedLines": 50,
       "priority": 1
     },
     {
       "id": "comp2",
-      "name": "ProductInfo",
-      "filePath": "components/ProductInfo.tsx",
-      "purpose": "展示商品标题、价格、描述等信息",
-      "props": ["title", "price", "description", "stock"],
+      "name": "${componentName}Content",
+      "filePath": "components/${componentName}Content.tsx",
+      "purpose": "组件主要内容区域",
+      "props": ["data", "loading"],
       "estimatedLines": 70,
       "priority": 2
     }
   ],
   "utilityFunctions": [
     {
-      "name": "formatPrice",
+      "name": "formatData",
       "filePath": "utils/formatters.ts",
-      "purpose": "将数字格式化为货币字符串",
-      "exports": ["formatPrice"],
+      "purpose": "格式化数据用于展示",
+      "exports": ["formatData"],
       "estimatedLines": 15
     }
   ],
   "mainComponent": {
     "filePath": "index.tsx",
-    "dependencies": ["ProductImage", "ProductInfo"],
-    "estimatedLines": 80
+    "dependencies": ["${componentName}Header", "${componentName}Content"],
+    "estimatedLines": 60
   }
 }
 
 ## 关键要求
 
-1. **子组件拆分原则**:
+1. **必须拆分至少 1 个子组件**
+   - 即使是很简单的组件，也要拆出内容部分
+   - 主组件负责状态管理，子组件负责 UI 渲染
+
+2. **子组件拆分原则**:
    - 每个子组件职责单一，遵循单一职责原则
    - 子组件之间低耦合，高内聚
-   - 避免过度拆分（不超过6个子组件）
+   - 避免过度拆分（不超过 6 个子组件）
    - 子组件代码行数控制在 40-80 行
 
-2. **工具函数提取原则**:
+3. **工具函数提取原则**:
    - 纯函数，无副作用
    - 可复用性强
    - 放在 utils/ 目录
    - 每个文件不超过 30 行
 
-3. **命名规范**:
+4. **命名规范**:
    - 组件名使用 PascalCase
    - 文件路径使用 kebab-case 或 camelCase
    - 工具函数使用 camelCase
 
-4. **依赖关系**:
+5. **依赖关系**:
    - 主组件依赖所有子组件
    - 子组件可以依赖工具函数
    - 避免循环依赖

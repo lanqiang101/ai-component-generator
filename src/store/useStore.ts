@@ -911,4 +911,5 @@ export const useStore = create<AppState>((set, get) => ({
       generationProgress: 0,
     });
   },
+
 }));
