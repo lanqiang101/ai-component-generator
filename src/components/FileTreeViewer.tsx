@@ -1,0 +1,174 @@
+import React, { useState, useMemo } from 'react';
+import { File, Folder, ChevronRight, ChevronDown } from 'lucide-react';
+import { cn } from '../utils/cn';
+
+interface FileNode {
+  name: string;
+  path: string;
+  type: 'file' | 'folder';
+  children?: FileNode[];
+}
+
+interface FileTreeViewerProps {
+  files: Array<{
+    name: string;
+    path: string;
+    code: string;
+  }>;
+  activeFilePath: string;
+  onFileSelect: (filePath: string) => void;
+}
+
+// 将扁平文件列表转换为树形结构
+function buildFileTree(files: FileTreeViewerProps['files']): FileNode[] {
+  const root: FileNode[] = [];
+  const map = new Map<string, FileNode>();
+
+  // 首先创建所有文件夹节点
+  files.forEach(file => {
+    const parts = file.path.split('/');
+    let currentPath = '';
+    
+    parts.forEach((part, index) => {
+      const isFile = index === parts.length - 1;
+      currentPath = currentPath ? `${currentPath}/${part}` : part;
+      
+      if (!map.has(currentPath)) {
+        const node: FileNode = {
+          name: part,
+          path: currentPath,
+          type: isFile ? 'file' : 'folder',
+          children: isFile ? undefined : []
+        };
+        map.set(currentPath, node);
+        
+        // 添加到父节点
+        if (index === 0) {
+          root.push(node);
+        } else {
+          const parentPath = parts.slice(0, index).join('/');
+          const parent = map.get(parentPath);
+          if (parent && parent.children) {
+            parent.children.push(node);
+          }
+        }
+      }
+    });
+  });
+
+  return root;
+}
+
+// 递归渲染文件树节点
+function TreeNode({ 
+  node, 
+  depth = 0, 
+  activeFilePath, 
+  onFileSelect 
+}: { 
+  node: FileNode; 
+  depth: number;
+  activeFilePath: string;
+  onFileSelect: (filePath: string) => void;
+}) {
+  const [isExpanded, setIsExpanded] = useState(depth < 2); // 默认展开前两级
+  const isActive = node.path === activeFilePath;
+  const hasChildren = node.children && node.children.length > 0;
+
+  const handleClick = () => {
+    if (node.type === 'folder') {
+      setIsExpanded(!isExpanded);
+    } else {
+      onFileSelect(node.path);
+    }
+  };
+
+  return (
+    <div>
+      <button
+        onClick={handleClick}
+        className={cn(
+          'w-full flex items-center gap-2 px-3 py-1.5 text-sm transition-colors',
+          'hover:bg-gray-100',
+          isActive && 'bg-blue-50 text-blue-600'
+        )}
+        style={{ paddingLeft: `${depth * 12 + 12}px` }}
+      >
+        {node.type === 'folder' ? (
+          <>
+            {hasChildren ? (
+              isExpanded ? (
+                <ChevronDown size={14} className="text-gray-400 flex-shrink-0" />
+              ) : (
+                <ChevronRight size={14} className="text-gray-400 flex-shrink-0" />
+              )
+            ) : (
+              <span className="w-3.5 flex-shrink-0" />
+            )}
+            <Folder size={14} className={cn(
+              'flex-shrink-0',
+              isExpanded ? 'text-blue-500' : 'text-gray-400'
+            )} />
+          </>
+        ) : (
+          <>
+            <span className="w-3.5 flex-shrink-0" />
+            <File size={14} className={cn(
+              'flex-shrink-0',
+              isActive ? 'text-blue-600' : 'text-gray-500'
+            )} />
+          </>
+        )}
+        <span className={cn(
+          'truncate',
+          node.type === 'folder' && 'font-medium',
+          isActive && 'font-medium'
+        )}>
+          {node.name}
+        </span>
+      </button>
+      
+      {node.type === 'folder' && isExpanded && hasChildren && (
+        <div>
+          {node.children!.map(child => (
+            <TreeNode
+              key={child.path}
+              node={child}
+              depth={depth + 1}
+              activeFilePath={activeFilePath}
+              onFileSelect={onFileSelect}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function FileTreeViewer({ files, activeFilePath, onFileSelect }: FileTreeViewerProps) {
+  const fileTree = useMemo(() => buildFileTree(files), [files]);
+
+  if (files.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="w-48 border-r border-gray-200 bg-white overflow-y-auto">
+      <div className="p-2 border-b border-gray-200">
+        <div className="text-xs font-medium text-gray-500 uppercase tracking-wide px-3">
+          文件结构
+        </div>
+      </div>
+      <div className="py-1">
+        {fileTree.map(node => (
+          <TreeNode
+            key={node.path}
+            node={node}
+            activeFilePath={activeFilePath}
+            onFileSelect={onFileSelect}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}

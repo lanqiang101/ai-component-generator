@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import Editor from 'react-simple-code-editor';
 import Prism from 'prismjs';
 import 'prismjs/components/prism-jsx.min';
@@ -9,6 +9,7 @@ import 'prismjs/components/prism-scss.min';
 import 'prismjs/components/prism-less.min';
 import { Copy, Download, Check, FileCode2, File } from 'lucide-react';
 import { useStore } from '../store/useStore';
+import { FileTreeViewer } from './FileTreeViewer';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -148,11 +149,11 @@ export const CodeEditorPanel: React.FC = () => {
     setCurrentCode,
     // 多文件生成相关
     generatedFiles,
-    activeFilePath
+    activeFilePath,
+    setActiveFile
   } = useStore();
   const [copied, setCopied] = useState(false);
   const [files, setFiles] = useState<CodeFile[]>([]);
-  const [activeFileIndex, setActiveFileIndex] = useState(0);
 
   // 当代码更新时，重新拆分文件
   React.useEffect(() => {
@@ -164,15 +165,18 @@ export const CodeEditorPanel: React.FC = () => {
         content: file.code
       }));
       setFiles(multiFiles);
-      // 找到当前激活的文件索引
-      const activeIndex = multiFiles.findIndex(f => f.name === activeFilePath.split('/').pop());
-      setActiveFileIndex(activeIndex >= 0 ? activeIndex : 0);
     } else if (currentCode) {
       const newFiles = splitCodeToFiles(currentCode);
       setFiles(newFiles);
-      setActiveFileIndex(newFiles.length - 1); // 默认显示最后一个文件（主组件）
     }
-  }, [currentCode, generatedFiles, activeFilePath]);
+  }, [currentCode, generatedFiles]);
+
+  // 根据 activeFilePath 查找当前文件
+  const activeFile = useMemo(() => {
+    if (files.length === 0) return null;
+    const currentFileName = activeFilePath.split('/').pop();
+    return files.find(f => f.name === currentFileName) || files[0];
+  }, [files, activeFilePath]);
 
   const highlight = (code: string) => {
     const lang = detectLanguage(code);
@@ -182,7 +186,7 @@ export const CodeEditorPanel: React.FC = () => {
 
   const handleCopy = async () => {
     try {
-      const codeToCopy = files.length > 0 ? files[activeFileIndex].content : currentCode;
+      const codeToCopy = activeFile ? activeFile.content : currentCode;
       await navigator.clipboard.writeText(codeToCopy);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -193,21 +197,19 @@ export const CodeEditorPanel: React.FC = () => {
   };
 
   const handleDownload = () => {
-    const currentFile = files[activeFileIndex];
-    const extension = currentFile ? currentFile.name.split('.').pop() : 'txt';
+    const extension = activeFile ? activeFile.name.split('.').pop() : 'txt';
 
-    const blob = new Blob([currentFile ? currentFile.content : currentCode], { type: 'text/plain;charset=utf-8' });
+    const blob = new Blob([activeFile ? activeFile.content : currentCode], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = currentFile ? currentFile.name : `component.${extension}`;
+    a.download = activeFile ? activeFile.name : `component.${extension}`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
 
-  const activeFile = files[activeFileIndex];
   const displayCode = activeFile ? activeFile.content : currentCode;
 
   // 修复 Bug: 同时检查 currentCode 和 generatedFiles
@@ -223,27 +225,21 @@ export const CodeEditorPanel: React.FC = () => {
 
   return (
     <div className="w-full h-full flex flex-col bg-white rounded-lg overflow-hidden border border-gray-200">
-      {/* 文件 Tab 切换栏 */}
-      {files.length > 1 && (
-        <div className="flex items-center bg-gray-50 border-b border-gray-200 overflow-x-auto">
-          {files.map((file, index) => (
-            <button
-              key={index}
-              onClick={() => setActiveFileIndex(index)}
-              className={cn(
-                "flex items-center gap-2 px-4 py-2.5 text-sm font-mono border-b-2 transition-all duration-150 whitespace-nowrap",
-                index === activeFileIndex
-                  ? "border-blue-500 text-blue-600 bg-white"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-100"
-              )}
-            >
-              <File size={14} />
-              <span>{file.name}</span>
-            </button>
-          ))}
-        </div>
-      )}
+      {/* 内容区域：文件树 + 代码编辑器 */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* 文件树 - 作为唯一切换入口 */}
+        {files.length > 0 && (
+          <FileTreeViewer
+            files={generatedFiles.length > 0 ? generatedFiles : files.map(f => ({ name: f.name, path: f.name, code: f.content }))}
+            activeFilePath={activeFilePath || (activeFile ? activeFile.name : '')}
+            onFileSelect={(filePath) => {
+              setActiveFile(filePath);
+            }}
+          />
+        )}
 
+        {/* 代码编辑器容器 */}
+        <div className="flex-1 flex flex-col overflow-hidden">
       {/* 工具栏 */}
       <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-200">
         {/* 左侧：文件名和行数 */}
@@ -301,9 +297,10 @@ export const CodeEditorPanel: React.FC = () => {
           <Editor
             value={displayCode}
             onValueChange={(newCode) => {
-              if (files.length > 0) {
-                const newFiles = [...files];
-                newFiles[activeFileIndex].content = newCode;
+              if (files.length > 0 && activeFile) {
+                const newFiles = files.map(f => 
+                  f.name === activeFile.name ? { ...f, content: newCode } : f
+                );
                 setFiles(newFiles);
               }
               setCurrentCode(newCode);
@@ -320,6 +317,8 @@ export const CodeEditorPanel: React.FC = () => {
             }}
             placeholder="// 生成的组件代码会显示在这里，您可以直接编辑..."
           />
+        </div>
+      </div>
         </div>
       </div>
 

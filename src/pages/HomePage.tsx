@@ -20,7 +20,6 @@ export const HomePage: React.FC = () => {
     activeFilePath,
     generationProgress,
     startMultiFileGeneration,
-    setActiveFile,
     getMergedCode
   } = useStore();
 
@@ -200,7 +199,7 @@ export const HomePage: React.FC = () => {
           {/* 下方：代码编辑器 */}
           <div className="flex-1 min-h-[250px]">
             <Card className="h-full flex flex-col overflow-hidden">
-              <div className="px-4 py-2.5 border-b border-gray-200 dark:border-slate-700 flex-shrink-0 bg-gray-50 dark:bg-slate-800/50 flex justify-between items-center">
+              <div className="px-4 py-2.5 border-b border-gray-200 dark:border-slate-700 flex-shrink-0 bg-gray-50 dark:bg-slate-800/50">
                 <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
                   组件代码
                   {generatedFiles.length > 0 && (
@@ -209,25 +208,6 @@ export const HomePage: React.FC = () => {
                     </span>
                   )}
                 </h3>
-                
-                {/* 文件切换按钮(仅多文件模式) */}
-                {generatedFiles.length > 1 && (
-                  <div className="flex gap-1">
-                    {generatedFiles.map(file => (
-                      <button
-                        key={file.path}
-                        onClick={() => setActiveFile(file.path)}
-                        className={`px-2 py-1 rounded text-xs ${
-                          activeFilePath === file.path
-                            ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
-                            : 'hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-600 dark:text-gray-400'
-                        }`}
-                      >
-                        {file.name}
-                      </button>
-                    ))}
-                  </div>
-                )}
               </div>
               <div className="flex-1 overflow-hidden">
                 <CodeEditorPanel />
