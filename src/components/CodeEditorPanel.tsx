@@ -7,12 +7,14 @@ import 'prismjs/components/prism-css.min';
 import 'prismjs/components/prism-markup.min';
 import 'prismjs/components/prism-scss.min';
 import 'prismjs/components/prism-less.min';
-import { Copy, Download, Check, FileCode2, File } from 'lucide-react';
+import { Copy, Download, Check, FileCode2, File, Wand2, AlertCircle } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { FileTreeViewer } from './FileTreeViewer';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { useTranslation } from '../i18n';
+import { fixCodeWithAI } from '../services/aiFixService';
+import { checkCommonSyntaxErrors, validateCode } from '../utils/previewUtils';
 
 function cn(...inputs: any[]) {
   return twMerge(clsx(inputs));
@@ -128,6 +130,15 @@ function splitCodeToFiles(code: string): CodeFile[] {
   return files;
 }
 
+// Merge multiple files back to single code with FILE markers
+function mergeFilesToCode(files: CodeFile[]): string {
+  if (files.length === 0) return '';
+  
+  return files.map(file => {
+    return `// ====== FILE: ${file.name} ======\n${file.content.trim()}\n`;
+  }).join('\n');
+}
+
 // Generate line numbers
 const renderLineNumber = (code: string) => {
   const lines = code.split('\n').length;
@@ -156,6 +167,8 @@ export const CodeEditorPanel: React.FC = () => {
   const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   const [files, setFiles] = useState<CodeFile[]>([]);
+  const [fixing, setFixing] = useState(false);
+  const [fixSuccess, setFixSuccess] = useState(false);
 
   // When code updates, re-split files
   React.useEffect(() => {
@@ -195,6 +208,54 @@ export const CodeEditorPanel: React.FC = () => {
     } catch (err) {
       console.error('Copy failed:', err);
       alert('Copy failed，请手动复制');
+    }
+  };
+
+  const handleAIFix = async () => {
+    if (!activeFile) return;
+
+    // Detect errors in current file
+    const errors = checkCommonSyntaxErrors(activeFile.content);
+    if (errors.length === 0) {
+      alert(t.codeEditor.noError || 'No syntax errors found');
+      return;
+    }
+
+    setFixing(true);
+    setFixSuccess(false);
+
+    try {
+      const result = await fixCodeWithAI(
+        activeFile.content,
+        errors,
+        activeFile.name
+      );
+
+      if (result.success && result.fixedCode) {
+        // Update file content
+        const newFiles = files.map(f =>
+          f.name === activeFile.name
+            ? { ...f, content: result.fixedCode }
+            : f
+        );
+        setFiles(newFiles);
+        
+        // Update global code
+        if (newFiles.length > 0) {
+          const mergedCode = mergeFilesToCode(newFiles);
+          setCurrentCode(mergedCode);
+        }
+
+        setFixSuccess(true);
+        setTimeout(() => setFixSuccess(false), 3000);
+      } else {
+        throw new Error(result.message || result.error || 'Fix failed');
+      }
+    } catch (error) {
+      console.error('AI Fix Error:', error);
+      alert(`${t.codeEditor.fixError}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setFixing(false);
     }
   };
 
@@ -257,6 +318,40 @@ export const CodeEditorPanel: React.FC = () => {
 
         {/* Right: Action buttons */}
         <div className="flex items-center gap-2">
+          {/* AI Fix button - only show when there are errors */}
+          {activeFile && checkCommonSyntaxErrors(activeFile.content).length > 0 && (
+            <button
+              onClick={handleAIFix}
+              disabled={fixing}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-150",
+                fixSuccess
+                  ? "bg-green-50 text-green-600 border border-green-200"
+                  : fixing
+                  ? "bg-purple-50 text-purple-400 border border-purple-200 cursor-wait"
+                  : "bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-300"
+              )}
+              title={t.codeEditor.fixHint}
+            >
+              {fixSuccess ? (
+                <>
+                  <Check size={14} />
+                  <span>{t.codeEditor.fixSuccess}</span>
+                </>
+              ) : fixing ? (
+                <>
+                  <Wand2 size={14} className="animate-spin" />
+                  <span>{t.codeEditor.fixing}</span>
+                </>
+              ) : (
+                <>
+                  <Wand2 size={14} />
+                  <span>{t.codeEditor.aiFix}</span>
+                </>
+              )}
+            </button>
+          )}
+          
           <button
             onClick={handleCopy}
             disabled={copied}

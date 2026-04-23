@@ -1,12 +1,14 @@
 import { useState, useMemo } from 'react';
-import { File, Folder, ChevronRight, ChevronDown } from 'lucide-react';
+import { File, Folder, ChevronRight, ChevronDown, AlertCircle } from 'lucide-react';
 import { cn } from '../utils/cn';
+import { checkCommonSyntaxErrors } from '../utils/previewUtils';
 
 interface FileNode {
   name: string;
   path: string;
   type: 'file' | 'folder';
   children?: FileNode[];
+  hasError?: boolean;
 }
 
 interface FileTreeViewerProps {
@@ -34,11 +36,15 @@ function buildFileTree(files: FileTreeViewerProps['files']): FileNode[] {
       currentPath = currentPath ? `${currentPath}/${part}` : part;
       
       if (!map.has(currentPath)) {
+        // Check if file has syntax errors
+        const hasError = isFile && checkCommonSyntaxErrors(file.code).length > 0;
+        
         const node: FileNode = {
           name: part,
           path: currentPath,
           type: isFile ? 'file' : 'folder',
-          children: isFile ? undefined : []
+          children: isFile ? undefined : [],
+          hasError: isFile ? hasError : undefined
         };
         map.set(currentPath, node);
         
@@ -122,10 +128,14 @@ function TreeNode({
         <span className={cn(
           'truncate',
           node.type === 'folder' && 'font-medium',
-          isActive && 'font-medium'
+          isActive && 'font-medium',
+          node.hasError && 'text-red-600 font-medium'
         )}>
           {node.name}
         </span>
+        {node.hasError && (
+          <AlertCircle size={12} className="text-red-500 flex-shrink-0 ml-1" />
+        )}
       </button>
       
       {node.type === 'folder' && isExpanded && hasChildren && (
