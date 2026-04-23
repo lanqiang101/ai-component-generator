@@ -140,22 +140,40 @@ const MermaidDiagram: React.FC<{ chart: string; title?: string }> = ({ chart, ti
   const sanitizeMermaidSyntax = (mermaidCode: string): string => {
     let sanitized = mermaidCode;
     
+    // Step 1: Decode JSON escape sequences first
+    // When AI returns Mermaid code in JSON, special chars are JSON-escaped
+    sanitized = sanitized
+      .replace(/\\"/g, '"')      // JSON-escaped quotes -> normal quotes
+      .replace(/\\n/g, '\n')     // JSON-escaped newlines
+      .replace(/\\t/g, '\t')     // JSON-escaped tabs
+      .replace(/\\\\/g, '\\');   // JSON-escaped backslashes
+    
     // Detect if it's block-beta syntax
     const isBlockBeta = /^\s*block-beta/i.test(sanitized.trim());
     
     if (isBlockBeta) {
       // Special handling for block-beta syntax
       // Match pattern: NodeId["Label"] or NodeId[Label]
+      // Use a more robust regex that handles quotes and brackets inside labels
       sanitized = sanitized.replace(
-        /(\w+)\[(.*?)\]/g,
+        /(\w+)\[([^\]]*(?:\][^\[]*)*)\]/g,
         (_match, nodeId, label) => {
-          // Uniformly use double quotes and escape internal quotes and brackets
-          const escapedLabel = label
-            .replace(/"/g, '&quot;')
-            .replace(/\(/g, '&#40;')
-            .replace(/\)/g, '&#41;')
-            .replace(/\[/g, '&#91;')
-            .replace(/\]/g, '&#93;');
+          // Clean the label: remove surrounding quotes if present
+          let cleanLabel = label.trim();
+          if ((cleanLabel.startsWith('"') && cleanLabel.endsWith('"')) ||
+              (cleanLabel.startsWith("'") && cleanLabel.endsWith("'"))) {
+            cleanLabel = cleanLabel.slice(1, -1);
+          }
+          
+          // Now apply Mermaid escaping
+          const escapedLabel = cleanLabel
+            .replace(/\\/g, '\\\\')  // Escape backslashes first
+            .replace(/"/g, '\\"')     // Escape double quotes
+            .replace(/\(/g, '\\(')    // Escape parentheses
+            .replace(/\)/g, '\\)')
+            .replace(/\[/g, '\\[')    // Escape brackets
+            .replace(/\]/g, '\\]');
+          
           return `${nodeId}["${escapedLabel}"]`;
         }
       );
@@ -169,9 +187,10 @@ const MermaidDiagram: React.FC<{ chart: string; title?: string }> = ({ chart, ti
           const keywords = ['columns', 'space', 'block', 'end', 'stack'];
           if (!keywords.includes(nodeId.toLowerCase())) {
             const escapedLabel = label.trim()
-              .replace(/"/g, '&quot;')
-              .replace(/\(/g, '&#40;')
-              .replace(/\)/g, '&#41;');
+              .replace(/\\/g, '\\\\')
+              .replace(/"/g, '\\"')
+              .replace(/\(/g, '\\(')
+              .replace(/\)/g, '\\)');
             return `${indent}${nodeId}["${escapedLabel}"]`;
           }
           return match;
@@ -181,12 +200,20 @@ const MermaidDiagram: React.FC<{ chart: string; title?: string }> = ({ chart, ti
       // Handling for graph/flowchart syntax
       // Handle bracketed node form: NodeId[Label with special chars]
       sanitized = sanitized.replace(
-        /(\w+)\[(.*?)\]/g,
+        /(\w+)\[([^\]]*(?:\][^\[]*)*)\]/g,
         (_match, nodeId, label) => {
-          const escapedLabel = label
-            .replace(/"/g, '&quot;')
-            .replace(/\(/g, '&#40;')
-            .replace(/\)/g, '&#41;');
+          // Clean the label: remove surrounding quotes if present
+          let cleanLabel = label.trim();
+          if ((cleanLabel.startsWith('"') && cleanLabel.endsWith('"')) ||
+              (cleanLabel.startsWith("'") && cleanLabel.endsWith("'"))) {
+            cleanLabel = cleanLabel.slice(1, -1);
+          }
+          
+          const escapedLabel = cleanLabel
+            .replace(/\\/g, '\\\\')
+            .replace(/"/g, '\\"')
+            .replace(/\(/g, '\\(')
+            .replace(/\)/g, '\\)');
           return `${nodeId}["${escapedLabel}"]`;
         }
       );
@@ -196,9 +223,10 @@ const MermaidDiagram: React.FC<{ chart: string; title?: string }> = ({ chart, ti
         /(\w+)\("(.*?)"\)/g,
         (_match, nodeId, label) => {
           const escapedLabel = label
-            .replace(/"/g, '&quot;')
-            .replace(/\(/g, '&#40;')
-            .replace(/\)/g, '&#41;');
+            .replace(/\\/g, '\\\\')
+            .replace(/"/g, '\\"')
+            .replace(/\(/g, '\\(')
+            .replace(/\)/g, '\\)');
           return `${nodeId}["${escapedLabel}"]`;
         }
       );
@@ -209,10 +237,11 @@ const MermaidDiagram: React.FC<{ chart: string; title?: string }> = ({ chart, ti
         (_match, nodeId, label) => {
           if (!label.includes('"')) {
             const escapedLabel = label
-              .replace(/\(/g, '&#40;')
-              .replace(/\)/g, '&#41;')
-              .replace(/\[/g, '&#91;')
-              .replace(/\]/g, '&#93;');
+              .replace(/\\/g, '\\\\')
+              .replace(/\(/g, '\\(')
+              .replace(/\)/g, '\\)')
+              .replace(/\[/g, '\\[')
+              .replace(/\]/g, '\\]');
             return `${nodeId}["${escapedLabel}"]`;
           }
           return _match;

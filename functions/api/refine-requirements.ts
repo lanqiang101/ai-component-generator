@@ -152,9 +152,10 @@ Please return the analysis results in **JSON format**, containing the following 
 3. prototypeDiagram: Must use Mermaid block-beta syntax to show component visual layout
 4. technicalNotes: List 2-4 key technical implementation points
 5. Ensure the returned JSON is valid, do not add extra explanatory text
-6. **重要**: 生成的 component code中，所有代码注释必须使用英文
+6. **CRITICAL: All output MUST be written in ENGLISH only. Do NOT use Chinese or any other language.**
+7. **IMPORTANT: All code comments in generated component code MUST be written in English.**
 
-Please return the JSON object directly, without adding \`\`\`json markers or other prefixes.`;
+Please return the JSON object directly in ENGLISH, without adding \`\`\`json markers or other prefixes.`;
   }
 }
 

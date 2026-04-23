@@ -119,9 +119,9 @@ Requirements:
 - Descriptions should be specific and actionable
 - Avoid vague expressions
 - Word count should be between 200-400 words
+- **CRITICAL: All output MUST be written in ENGLISH only. Do NOT use Chinese or any other language.**
+- **IMPORTANT: All code comments MUST be written in English.**
 
-IMPORTANT: All code comments MUST be written in English.
-
-Please return the expanded requirement description directly, without any prefixes or suffixes.`;
+Please return the expanded requirement description directly in ENGLISH, without any prefixes or suffixes.`;
   }
 }

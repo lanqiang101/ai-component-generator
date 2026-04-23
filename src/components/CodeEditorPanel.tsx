@@ -153,7 +153,7 @@ export const CodeEditorPanel: React.FC = () => {
     activeFilePath,
     setActiveFile
   } = useStore();
-  const { t, language } = useTranslation();
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   const [files, setFiles] = useState<CodeFile[]>([]);
 
