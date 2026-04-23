@@ -1,21 +1,26 @@
 # AI 组件生成器
 
-基于 AI 的前端组件生成器，使用火山方舟大模型自动生成 React/Vue/HTML 组件代码。
+基于 AI 的前端组件生成器，使用大语言模型自动生成 React/Vue/HTML 组件代码。
 
 [English Version](./README.md)
 
 ## ✨ 功能特性
 
-- ✨ **智能需求整理**：AI 自动分析需求，生成组件结构、功能点和代码
-- 🤖 **支持多种框架**：React (TSX/JSX)、Vue 3 (SFC)、纯 HTML/CSS/JS
+- 🤖 **智能需求分析** - AI 自动分析需求，生成组件结构、功能点和代码
+- 🎯 **支持多种框架** - React (TSX/JSX)、Vue 3 (SFC)、纯 HTML/CSS/JS
 - 🎨 **丰富的配置选项**：
-  - 多种 UI 设计风格（简约、新拟物化、玻璃拟态、赛博朋克等）
-  - 动态 UI 库选择（Ant Design, Element Plus, Tailwind 等）
+  - 多种 UI 设计风格（简约现代、新拟物化、玻璃拟态、赛博朋克、复古、Material Design、Ant Design）
+  - 动态 UI 库选择（根据框架自动过滤可用选项）
   - 支持 CSS/SCSS/LESS/Tailwind CSS 多种样式预处理
-- 🔄 **实时预览**：支持多种设备尺寸预览，代码编辑后预览立即更新
-- 📝 **代码编辑**：内置代码编辑器，支持语法高亮、复制和下载
-- 🔒 **安全架构**：使用 Cloudflare Worker 加密中转 API Key，保障安全
-- 🚀 **开箱即用**：内置火山方舟模型配置，无需复杂设置
+  - Mock 数据开关，生成后可编辑
+  - 交互事件配置
+- 🔄 **实时预览** - 代码编辑后预览立即更新
+- 📱 **分辨率切换** - 支持移动端/平板/笔记本/桌面/全屏等多种预设分辨率预览
+- 💾 **无需数据库** - 模型配置存储在浏览器 localStorage
+- 🌓 **暗黑模式** - 支持自动/浅色/暗黑三种主题模式
+- 📝 **代码编辑器** - 内置语法高亮，支持复制和下载
+- 🔒 **安全架构** - 使用 Cloudflare Worker 加密中转 API Key，保障安全
+- 🚀 **开箱即用** - 内置火山方舟模型配置，无需复杂设置
 
 ## 🚀 快速开始
 
@@ -69,16 +74,18 @@ npm run build
 
 1. **配置模型** - 确保 `.env` 中配置了正确的 Cloudflare Worker 地址，或在前端「模型管理」中检查配置（如果使用本地代理）。
 2. **填写需求** - 在主页填写组件需求：
-   - 组件名称和描述
+   - 组件名称和描述（支持 AI 扩写功能）
    - 选择框架和组件类型
    - 选择 UI 设计风格
-   - 选择 UI 组件库（可选）
+   - 选择 UI 组件库（可选，支持版本选择）
    - 选择样式预处理
    - 配置是否需要 Mock 数据和交互
+   - 添加额外需求
 3. **生成组件** - 点击「生成组件」按钮（或按 `Ctrl/Cmd + Enter`）
-4. **预览编辑** - 在右侧预览效果，在代码编辑器修改，预览实时更新
-5. **切换分辨率** - 在预览栏切换不同分辨率查看适配效果
-6. **导出代码** - 复制或下载代码到你的项目使用
+4. **查看需求整理** - AI 会分析并整理你的需求，展示组件结构、功能点和技术要点
+5. **预览编辑** - 在右侧预览效果，在代码编辑器修改，预览实时更新
+6. **切换分辨率** - 在预览栏切换不同分辨率查看适配效果
+7. **导出代码** - 复制或下载代码到你的项目使用
 
 ## 🗂️ 项目结构
 
@@ -86,12 +93,21 @@ npm run build
 ai-component-generator/
 ├── src/                    # 前端源码
 │   ├── components/        # React 组件
+│   │   ├── ui/           # 基础 UI 组件（Button, Card, Input 等）
+│   │   ├── LeftFormPanel.tsx      # 左侧配置表单
+│   │   ├── PreviewPanel.tsx       # 预览面板
+│   │   ├── CodeEditorPanel.tsx    # 代码编辑器
+│   │   ├── GenerateButton.tsx     # 生成按钮
+│   │   └── GenerationProgress.tsx # 生成进度指示器
 │   ├── pages/            # 页面组件
+│   │   └── HomePage.tsx  # 主生成器页面
 │   ├── store/            # Zustand 状态管理
-│   └── types/            # TypeScript 类型定义
-├── server/                # 后端服务 (本地开发代理)
+│   ├── types/            # TypeScript 类型定义
+│   ├── constants/        # 常量配置（分辨率、UI 库等）
+│   └── utils/            # 工具函数
+├── server/                # 后端服务（本地开发代理）
 │   └── index.js          # Express 服务器
-├── worker/                # Cloudflare Worker (生产环境代理)
+├── worker/                # Cloudflare Worker（生产环境代理）
 │   ├── index.js          # Worker 代码
 │   └── wrangler.toml     # Wrangler 配置
 ├── docs/                  # 文档
@@ -110,6 +126,17 @@ ai-component-generator/
 - Vue 3 + TypeScript (.vue)
 - Vue 3 + JavaScript (.vue)
 - 纯 HTML + CSS + JavaScript
+
+### 组件类型
+- 按钮
+- 卡片
+- 表单
+- 导航栏
+- 模态框
+- 下拉菜单
+- 表格
+- 图表
+- 其他自定义
 
 ### UI 库（动态）
 
@@ -157,12 +184,15 @@ ai-component-generator/
 
 ## 🔧 技术栈
 
-- **前端**：React 18 + TypeScript + Vite + Tailwind CSS
+- **前端**：React 18 + TypeScript + Vite + Tailwind CSS v3
 - **状态管理**：Zustand
-- **UI 组件**：Radix UI Primitives
-- **后端**：Node.js + Express (本地开发)
+- **UI 组件**：Radix UI Primitives（Dialog, Select, Switch, Tabs）
+- **图标**：Lucide React
+- **代码编辑器**：react-simple-code-editor + Prism.js
+- **后端**：Node.js + Express（本地开发）
 - **AI 模型**：火山方舟（ark-code-latest）
 - **安全代理**：Cloudflare Workers
+- **路由**：React Router DOM v7
 
 ## ⚙️ API 配置说明
 

@@ -25,10 +25,10 @@ const uiLibraryVersions: Record<string, string[]> = {
 
 // 根据框架返回可用的UI库选项
 export const getUILibrariesForFramework = (framework: Framework): UILibraryOption[] => {
-  // React 框架
+  // React frameworks
   if (framework.startsWith('react')) {
     return [
-      { value: 'none', label: '不使用（原生）', defaultVersions: [] },
+      { value: 'none', label: 'None (Native)', defaultVersions: [] },
       { value: 'antd', label: 'Ant Design', defaultVersions: ['5.x', '4.x'] },
       { value: 'material-ui', label: 'Material UI', defaultVersions: ['v5 (MUI)', 'v4'] },
       { value: 'chakra-ui', label: 'Chakra UI', defaultVersions: ['v2', 'v1'] },
@@ -37,10 +37,10 @@ export const getUILibrariesForFramework = (framework: Framework): UILibraryOptio
     ];
   }
 
-  // Vue 框架
+  // Vue frameworks
   if (framework.startsWith('vue')) {
     return [
-      { value: 'none', label: '不使用（原生）', defaultVersions: [] },
+      { value: 'none', label: 'None (Native)', defaultVersions: [] },
       { value: 'element-plus', label: 'Element Plus', defaultVersions: ['v2.x'] },
       { value: 'antd-vue', label: 'Ant Design Vue', defaultVersions: ['v4.x', 'v3.x'] },
       { value: 'vuetify', label: 'Vuetify', defaultVersions: ['v3.x', 'v2.x'] },
@@ -48,9 +48,9 @@ export const getUILibrariesForFramework = (framework: Framework): UILibraryOptio
     ];
   }
 
-  // HTML 纯原生
+  // HTML native
   return [
-    { value: 'none', label: '不使用（原生）', defaultVersions: [] },
+    { value: 'none', label: 'None (Native)', defaultVersions: [] },
     { value: 'bootstrap', label: 'Bootstrap', defaultVersions: ['v5', 'v4'] },
     { value: 'tailwind', label: 'Tailwind CSS', defaultVersions: ['v3.x', 'v2.x'] },
   ];
@@ -61,9 +61,9 @@ export const getVersionsForUILibrary = (uiLibrary: string): string[] => {
   return uiLibraryVersions[uiLibrary] || [];
 };
 
-// 样式预处理选项
+// Style preprocessor options
 export const stylePreprocessorOptions = [
-  { value: 'css', label: '原生 CSS' },
+  { value: 'css', label: 'Native CSS' },
   { value: 'scss', label: 'SCSS' },
   { value: 'less', label: 'LESS' },
   { value: 'tailwind', label: 'Tailwind CSS' },

@@ -12,6 +12,7 @@ import { useStore } from '../store/useStore';
 import { FileTreeViewer } from './FileTreeViewer';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { useTranslation } from '../i18n';
 
 function cn(...inputs: any[]) {
   return twMerge(clsx(inputs));
@@ -152,6 +153,7 @@ export const CodeEditorPanel: React.FC = () => {
     activeFilePath,
     setActiveFile
   } = useStore();
+  const { t, language } = useTranslation();
   const [copied, setCopied] = useState(false);
   const [files, setFiles] = useState<CodeFile[]>([]);
 
@@ -218,7 +220,7 @@ export const CodeEditorPanel: React.FC = () => {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center bg-white rounded-lg border border-gray-200">
         <FileCode2 size={48} className="text-gray-400 mb-4" />
-        <p className="text-gray-500 text-sm">点击左侧"生成组件"按钮开始</p>
+        <p className="text-gray-500 text-sm">{t.codeEditor.noCode}</p>
       </div>
     );
   }
@@ -249,7 +251,7 @@ export const CodeEditorPanel: React.FC = () => {
             {activeFile ? activeFile.name : 'component.tsx'}
           </span>
           <span className="text-xs text-gray-400 ml-2">
-            {displayCode.split('\n').length} 行
+            {displayCode.split('\n').length} {t.codeEditor.lines}
           </span>
         </div>
 
@@ -268,12 +270,12 @@ export const CodeEditorPanel: React.FC = () => {
             {copied ? (
               <>
                 <Check size={14} />
-                <span>已复制</span>
+                <span>{t.codeEditor.copied}</span>
               </>
             ) : (
               <>
                 <Copy size={14} />
-                <span>复制</span>
+                <span>{t.codeEditor.copy}</span>
               </>
             )}
           </button>
@@ -282,7 +284,7 @@ export const CodeEditorPanel: React.FC = () => {
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-white hover:bg-gray-50 text-gray-700 rounded-md border border-gray-300 transition-all duration-150"
           >
             <Download size={14} />
-            <span>下载</span>
+            <span>{t.codeEditor.download}</span>
           </button>
         </div>
       </div>
@@ -315,7 +317,7 @@ export const CodeEditorPanel: React.FC = () => {
               fontSize: '14px',
               lineHeight: '1.5',
             }}
-            placeholder="// 生成的组件代码会显示在这里，您可以直接编辑..."
+            placeholder={t.codeEditor.placeholder}
           />
         </div>
       </div>

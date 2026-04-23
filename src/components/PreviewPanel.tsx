@@ -13,27 +13,57 @@ import {
   Tablet,
   AlertCircle,
 } from "lucide-react";
+import { useTranslation } from '../i18n';
 
 // 设备类型定义
 type DeviceType = 'desktop' | 'tablet' | 'mobile';
 
-// 设备类型配置
-const devicePresets: Record<DeviceType, { label: string; icon: typeof Monitor; resolutions: PreviewResolution[] }> = {
+// 设备类型配置 - 使用国际化标签
+const getDevicePresets = (t: any) => ({
   desktop: {
-    label: '桌面',
+    label: t.preview.desktop,
     icon: Monitor,
-    resolutions: ['full', 'laptop', 'desktop', 'surface-pro7'],
+    resolutions: ['full', 'laptop', 'desktop', 'surface-pro7'] as PreviewResolution[],
   },
   tablet: {
-    label: '平板',
+    label: t.preview.tablet,
     icon: Tablet,
-    resolutions: ['ipad-mini', 'ipad-air', 'ipad-pro', 'surface-duo'],
+    resolutions: ['ipad-mini', 'ipad-air', 'ipad-pro', 'surface-duo'] as PreviewResolution[],
   },
   mobile: {
-    label: '手机',
+    label: t.preview.mobile,
     icon: Smartphone,
-    resolutions: ['iphone-se', 'iphone-xr', 'iphone-12-pro', 'iphone-14-pro-max', 'pixel-7', 'pixel-7-pro'],
+    resolutions: ['iphone-se', 'iphone-xr', 'iphone-12-pro', 'iphone-14-pro-max', 'pixel-7', 'pixel-7-pro'] as PreviewResolution[],
   },
+});
+
+// Helper function to get localized resolution label
+const getResolutionLabel = (key: PreviewResolution, t: any): string => {
+  const labelMap: Record<PreviewResolution, string> = {
+    'full': t.preview.fullscreenAdaptive,
+    'laptop': `${t.preview.laptopSize} (1366×768)`,
+    'desktop': `${t.preview.desktopSize} (1920×1080)`,
+    'surface-pro7': `${t.preview.surfacePro7} (912×1368)`,
+    'ipad-mini': `${t.preview.ipadMini} (768×1024)`,
+    'ipad-air': `${t.preview.ipadAir} (820×1180)`,
+    'ipad-pro': `${t.preview.ipadPro} (1024×1366)`,
+    'surface-duo': `${t.preview.surfaceDuo} (540×720)`,
+    'iphone-se': `${t.preview.iphoneSE} (375×667)`,
+    'iphone-xr': `${t.preview.iphoneXR} (414×896)`,
+    'iphone-12-pro': `${t.preview.iphone12Pro} (390×844)`,
+    'iphone-14-pro-max': `${t.preview.iphone14ProMax} (430×932)`,
+    'pixel-7': `${t.preview.pixel7} (412×915)`,
+    'pixel-7-pro': `${t.preview.pixel7Pro} (480×1024)`,
+    'galaxy-s8': `${t.preview.galaxyS8} (360×740)`,
+    'galaxy-s20-ultra': `${t.preview.galaxyS20Ultra} (412×915)`,
+    'galaxy-z-fold5': `${t.preview.galaxyZFold5} (674×904)`,
+    'galaxy-a51': `${t.preview.galaxyA51} (412×914)`,
+    'zenbook-fold': `${t.preview.zenbookFold} (853×1280)`,
+    'nest-hub': `${t.preview.nestHub} (1024×600)`,
+    'nest-hub-max': `${t.preview.nestHubMax} (1280×800)`,
+  };
+  
+  return labelMap[key] || key;
 };
 
 // 辅助函数: 检查常见的 AI 生成语法错误
@@ -502,7 +532,11 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
   resolution,
 }) => {
   const { setPreviewResolution } = useStore();
+  const { t, language } = useTranslation();
   const [error, setError] = useState<string | null>(null);
+  // 新增：代码粘贴测试功能
+  const [testCode, setTestCode] = useState<string>("");
+  const [showTestArea, setShowTestArea] = useState<boolean>(false);
   
   // 设备切换状态
   const [deviceType, setDeviceType] = useState<DeviceType>(() => {
@@ -516,6 +550,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
     return 'mobile';
   });
 
+  const devicePresets = getDevicePresets(t);
   const preset = resolutionPresets[resolution];
 
   // 验证代码
@@ -527,6 +562,10 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
   // 处理iframe srcDoc
   const iframeHtml = useMemo(() => {
     if (!code) {
+      // Get current language from URL
+      const isZh = window.location.pathname.startsWith('/zh');
+      const emptyMessage = isZh ? '点击左侧"生成组件"按钮开始' : 'Click "Generate Component" button on the left to start';
+      
       return `
 <!DOCTYPE html>
 <html>
@@ -537,7 +576,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
 </head>
 <body class="bg-white p-8">
   <div class="text-center text-gray-500">
-    <p class="text-lg">点击左侧"生成组件"按钮开始</p>
+    <p class="text-lg">${emptyMessage}</p>
   </div>
 </body>
 </html>
@@ -670,6 +709,89 @@ ${code}
     }
   }, [isAdaptive]);
 
+  // 处理测试代码的渲染
+  const handleTestCodeRender = () => {
+    if (!testCode.trim()) {
+      setError("请输入要测试的代码");
+      return;
+    }
+    
+    console.log('🧪 开始测试代码渲染...');
+    console.log('=== 测试代码 ===');
+    console.log(testCode);
+    
+    // 提取组件名
+    const componentName = extractComponentName(testCode);
+    console.log(`📦 提取的组件名: ${componentName}`);
+    
+    // 预处理代码
+    const processedCode = preprocessCodeForBrowser(testCode);
+    console.log('=== 预处理后的代码 ===');
+    console.log(processedCode);
+    
+    // 生成HTML
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.development.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50">
+  <div id="root"></div>
+  <script type="text/babel">
+${processedCode}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<${componentName} />);
+  </script>
+</body>
+</html>
+    `.trim();
+    
+    // 创建一个新的iframe来显示测试结果
+    const iframe = document.createElement('iframe');
+    iframe.style.width = '100%';
+    iframe.style.height = '600px';
+    iframe.style.border = '1px solid #e5e7eb';
+    iframe.style.marginTop = '20px';
+    iframe.srcdoc = html;
+    
+    // 清除旧的测试结果
+    const oldTestResult = document.getElementById('test-result-container');
+    if (oldTestResult) {
+      oldTestResult.remove();
+    }
+    
+    // 添加新的测试结果容器
+    const container = document.createElement('div');
+    container.id = 'test-result-container';
+    container.innerHTML = '<h3 style="margin: 10px 0; color: #374151;">🧪 测试结果:</h3>';
+    container.appendChild(iframe);
+    
+    // 插入到测试区域下方
+    const testArea = document.getElementById('test-code-area');
+    if (testArea) {
+      testArea.parentNode?.insertBefore(container, testArea.nextSibling);
+    }
+    
+    setError(null);
+  };
+
+  // 清空测试代码
+  const handleClearTest = () => {
+    setTestCode("");
+    setError(null);
+    const oldTestResult = document.getElementById('test-result-container');
+    if (oldTestResult) {
+      oldTestResult.remove();
+    }
+  };
+
   return (
     <div className="w-full h-full flex flex-col bg-gray-50 dark:bg-slate-900">
       {/* 顶部工具栏 */}
@@ -678,7 +800,7 @@ ${code}
           {/* 左侧：设备类型切换 */}
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-600 dark:text-gray-400">
-              设备：
+              {t.preview.device}
             </span>
             <div className="flex gap-1 bg-gray-100 dark:bg-slate-700 rounded-lg p-1">
               {(Object.keys(devicePresets) as DeviceType[]).map((type) => {
@@ -715,7 +837,7 @@ ${code}
           {/* 右侧：具体设备尺寸选择 */}
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-600 dark:text-gray-400">
-              尺寸：
+              {t.preview.size}
             </span>
             <Select.Root
               value={resolution}
@@ -723,8 +845,8 @@ ${code}
                 setPreviewResolution(value as PreviewResolution)
               }
             >
-              <Select.Trigger className="inline-flex items-center justify-between px-3 py-1.5 text-sm rounded-md border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-50 min-w-[180px] transition-colors duration-150">
-                <Select.Value placeholder="选择设备尺寸" />
+              <Select.Trigger className="inline-flex items-center justify-between px-3 py-1.5 text-sm rounded-md border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-50 min-w-[180px] transition-colors duration-150">
+                <Select.Value placeholder={language === 'en' ? 'Select device size' : '选择设备尺寸'} />
                 <Select.Icon className="ml-2">
                   <ChevronDown size={14} />
                 </Select.Icon>
@@ -740,13 +862,14 @@ ${code}
                     {/* 只显示当前设备类型的分辨率 */}
                     {devicePresets[deviceType].resolutions.map((resKey) => {
                       const item = resolutionPresets[resKey];
+                      const localizedLabel = getResolutionLabel(resKey, t);
                       return (
                         <Select.Item
                           key={item.key}
                           value={item.key}
                           className="relative flex items-center px-3 py-2 rounded-md text-sm cursor-pointer select-none outline-none data-[highlighted]:bg-blue-50 dark:data-[highlighted]:bg-blue-900/20 data-[highlighted]:text-blue-700 dark:data-[highlighted]:text-blue-300 data-[state=checked]:bg-blue-50 dark:data-[state=checked]:bg-blue-900/20 data-[state=checked]:text-blue-700 dark:data-[state=checked]:text-blue-300 transition-colors duration-150"
                         >
-                          <Select.ItemText>{item.label}</Select.ItemText>
+                          <Select.ItemText>{localizedLabel}</Select.ItemText>
                           <Select.ItemIndicator className="absolute right-2">
                             <Check size={14} />
                           </Select.ItemIndicator>
@@ -758,10 +881,58 @@ ${code}
               </Select.Portal>
             </Select.Root>
           </div>
+          
+          {/* 代码测试按钮 - 独立放置在右侧 */}
+          <button
+            onClick={() => setShowTestArea(!showTestArea)}
+            className="px-3 py-1.5 text-sm rounded-md border border-purple-300 dark:border-purple-600 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors duration-150 flex items-center gap-1"
+            title={language === 'en' ? 'Paste code to test directly' : '粘贴代码直接测试渲染，无需走完整生成流程'}
+          >
+            <span>🧪</span>
+            <span>{showTestArea ? t.preview.hideTest : t.preview.codeTest}</span>
+          </button>
         </div>
+        
+        {/* 代码粘贴测试区域 */}
+        {showTestArea && (
+          <div id="test-code-area" className="mt-3 p-3 bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-900/10 dark:to-blue-900/10 rounded-lg border border-purple-200 dark:border-purple-700">
+            <div className="mb-2 flex items-center justify-between">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                <span>📋</span>
+                <span>{language === 'en' ? 'Paste code for testing' : '粘贴代码进行测试（无需走完整生成流程）'}</span>
+              </label>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleClearTest}
+                  className="px-3 py-1.5 text-xs rounded border border-gray-300 dark:border-slate-600 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-600 transition-colors"
+                >
+                  🗑️ {t.preview.clear}
+                </button>
+                <button
+                  onClick={handleTestCodeRender}
+                  className="px-3 py-1.5 text-xs rounded bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 transition-all shadow-sm"
+                >
+                  ▶️ {t.preview.renderTest}
+                </button>
+              </div>
+            </div>
+            <textarea
+              value={testCode}
+              onChange={(e) => setTestCode(e.target.value)}
+              placeholder={t.preview.pasteCodePlaceholder}
+              className="w-full h-48 px-3 py-2 text-sm font-mono rounded border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-50 resize-vertical"
+            />
+            {error && (
+              <div className="mt-2 p-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded text-sm text-red-600 dark:text-red-400 flex items-start gap-2">
+                <span>⚠️</span>
+                <span>{error}</span>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Preview iframe container */}
+      {/* 预览 iframe 容器 */}
       <div className="flex-1 flex items-start justify-center bg-gray-100 dark:bg-slate-900/50 p-6 overflow-y-auto overflow-x-hidden">
         {/* 代码验证失败提示 */}
         {!validation.valid ? (
@@ -771,15 +942,15 @@ ${code}
                 <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
                 <div className="flex-1">
                   <h3 className="text-sm font-semibold text-red-900 dark:text-red-100 mb-2">
-                    代码存在语法错误
+                    {t.preview.syntaxError}
                   </h3>
                   <p className="text-sm text-red-700 dark:text-red-300 mb-3">
                     {validation.error}
                   </p>
                   <div className="bg-red-50 dark:bg-red-900/20 rounded-md p-3 border border-red-100 dark:border-red-800">
                     <p className="text-xs text-red-600 dark:text-red-400">
-                      <strong>提示：</strong>
-                      请检查左侧代码编辑器中的代码，修复语法错误后自动重新预览
+                      <strong>{language === 'en' ? 'Tip:' : '提示：'}</strong>
+                      {t.preview.errorHint}
                     </p>
                   </div>
                 </div>
@@ -798,7 +969,7 @@ ${code}
                   {error}
                 </p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  请检查代码语法是否正确
+                  {t.preview.checkSyntax}
                 </p>
               </div>
             ) : (

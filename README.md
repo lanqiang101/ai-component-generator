@@ -1,79 +1,88 @@
 # AI Component Generator
 
-Based AI 的前端组件生成器，使用火山方舟大模型自动生成 React 组件代码。
+An AI-powered frontend component generator that automatically generates React/Vue/HTML component code using large language models.
 
-## 快速开始
-
-### 1. 安装依赖
-
-```bash
-npm install
-```
-
-### 2. 配置环境变量
-
-项目已经配置了正式的 Worker URL，无需修改：
-
-```bash
-# .env 文件中已经配置
-VITE_AI_PROXY_URL=https://ai-component-proxy.xuyongqiang916.workers.dev
-AI_PROXY_URL=https://ai-component-proxy.xuyongqiang916.workers.dev
-```
-
-### 3. 测试 Worker 连接
-
-```bash
-# 测试 Worker 是否可访问
-npm run test:worker
-```
-
-**注意**：如果你在国内网络环境下，访问 Cloudflare Workers 可能会遇到网络限制。如果遇到连接超时：
-- 尝试使用代理或 VPN
-- 或者部署自己的 Worker 到其他地区
-
-### 4. 启动开发服务器
-
-```bash
-npm run dev
-```
-
-访问：
-- 前端：http://localhost:3000
-- 后端：http://localhost:3001
-
-### 5. 构建生产环境
-
-```bash
-npm run build
-```
+[中文版本](./README_zh.md)
 
 ## ✨ Features
 
-- 🤖 **Multiple Frameworks Support** - React (TSX/JSX), Vue 3 (SFC), plain HTML/CSS/JS
-- 🎨 **Rich Configuration Options**
-  - Multiple UI design styles (minimal, neumorphism, glassmorphism, cyberpunk, retro, etc.)
-  - Dynamic UI library selection (filtered automatically by framework)
+- 🤖 **Smart Requirement Analysis** - AI automatically analyzes requirements and generates component structure, features, and code
+- 🎯 **Multiple Framework Support** - React (TSX/JSX), Vue 3 (SFC), plain HTML/CSS/JS
+- 🎨 **Rich Configuration Options**:
+  - Multiple UI design styles (Minimal, Neumorphism, Glassmorphism, Cyberpunk, Retro, Material Design, Ant Design)
+  - Dynamic UI library selection (automatically filtered by framework)
   - Supports CSS/SCSS/LESS/Tailwind CSS style preprocessing
   - Mock data toggle, editable after generation
+  - Interactive event configuration
 - 🔄 **Real-time Preview** - Preview updates immediately after code editing
 - 📱 **Resolution Switching** - Preview with preset resolutions: mobile/tablet/laptop/desktop/fullscreen
 - 💾 **No Database Required** - Model configuration stored in browser localStorage
 - 🌓 **Dark Mode** - Supports auto/light/dark theme modes
 - 📝 **Code Editor** - Syntax highlighting, copy & download
+- 🔒 **Secure Architecture** - Uses Cloudflare Worker to encrypt and proxy API Keys for security
+- 🚀 **Out-of-the-box** - Built-in Volcengine model configuration, no complex setup required
+
+## 🚀 Quick Start
+
+### 1. Install Dependencies
+
+```bash
+npm install
+```
+
+### 2. Configure Environment Variables
+
+The project is already configured with the official Worker URL, ready to use:
+
+```bash
+# Already configured in .env file
+VITE_AI_PROXY_URL=https://ai-component-proxy.xuyongqiang916.workers.dev
+AI_PROXY_URL=https://ai-component-proxy.xuyongqiang916.workers.dev
+```
+
+### 3. Test Worker Connection
+
+```bash
+# Test if Worker is accessible
+npm run test:worker
+```
+
+**⚠️ Network Notice for China Users**:
+- Cloudflare Workers may be restricted in mainland China
+- If you encounter connection timeout, try:
+  - Use a proxy or VPN
+  - Deploy your own Worker to overseas nodes
+  - Check firewall settings
+
+### 4. Start Development Server
+
+```bash
+npm run dev
+```
+
+Visit:
+- Frontend: http://localhost:3000
+- Backend: http://localhost:3001
+
+### 5. Build for Production
+
+```bash
+npm run build
+```
 
 ## 📖 Usage Flow
 
-1. **Add Model** - Go to "Model Management" to add your AI model (supports local Ollama or cloud APIs like Volcengine/OpenAI)
-2. **Select Model** - Go to "Model Config" to select the model for component generation
-3. **Fill Requirements** - Fill in component requirements on the homepage:
-   - Component name and description
+1. **Configure Model** - Ensure `.env` has the correct Cloudflare Worker address, or check configuration in "Model Management" on the frontend (if using local proxy).
+2. **Fill Requirements** - Fill in component requirements on the homepage:
+   - Component name and description (with AI expansion feature)
    - Choose framework and component type
    - Select UI design style
-   - Choose UI library (optional)
+   - Choose UI library (optional, with version selection)
    - Choose style preprocessor
    - Configure whether you need mock data and interactions
    - Add extra requirements
-4. **Generate Component** - Click "Generate Component" button (or press `Ctrl/Cmd + Enter`)
+3. **Generate Component** - Click "Generate Component" button (or press `Ctrl/Cmd + Enter`)
+4. **Review Requirements** - AI will analyze and refine your requirements, showing component structure, features, and technical notes
 5. **Preview & Edit** - Preview on the right, edit in code editor, preview updates in real-time
 6. **Switch Resolution** - Switch different resolutions in preview bar to check responsiveness
 7. **Export Code** - Copy or download code for use in your project
@@ -82,38 +91,31 @@ npm run build
 
 ```
 ai-component-generator/
+├── src/                    # Frontend source code
+│   ├── components/        # React components
+│   │   ├── ui/           # Basic UI components (Button, Card, Input, etc.)
+│   │   ├── LeftFormPanel.tsx      # Left configuration form
+│   │   ├── PreviewPanel.tsx       # Preview panel
+│   │   ├── CodeEditorPanel.tsx    # Code editor
+│   │   ├── GenerateButton.tsx     # Generate button
+│   │   └── GenerationProgress.tsx # Generation progress indicator
+│   ├── pages/            # Page components
+│   │   └── HomePage.tsx  # Main generator page
+│   ├── store/            # Zustand state management
+│   ├── types/            # TypeScript type definitions
+│   ├── constants/        # Constants (resolutions, UI libraries)
+│   └── utils/            # Utility functions
+├── server/                # Backend service (local development proxy)
+│   └── index.js          # Express server
+├── worker/                # Cloudflare Worker (production environment proxy)
+│   ├── index.js          # Worker code
+│   └── wrangler.toml     # Wrangler configuration
+├── docs/                  # Documentation
+│   └── cloudflare-worker.md
 ├── package.json
 ├── tsconfig.json
 ├── vite.config.ts
-├── .eslintrc.cjs
-├── .gitignore
-├── README.md          # Chinese README
-├── README-EN.md       # This file
-├── requirements.md     # Requirements document
-├── server/
-│   └── index.js        # Express backend (API proxy only)
-└── src/
-    ├── main.tsx        # React entry
-    ├── App.tsx         # Root component + routing
-    ├── index.css       # Global styles
-    ├── types/
-    │   ├── index.ts    # TypeScript type definitions
-    │   └── defaults.ts # Default parameters
-    ├── constants/
-    │   ├── resolutions.ts  # Resolution presets
-    │   └── ui-libraries.ts # UI library options
-    ├── store/
-    │   └── useStore.ts # Zustand state management
-    ├── pages/
-    │   ├── HomePage.tsx      # Generator homepage
-    │   ├── ConfigPage.tsx    # System configuration
-    │   └── ModelManagementPage.tsx  # Model management
-    │       └── ModelDialog.tsx # Add/edit model dialog
-    └── components/
-        ├── ui/               # Basic UI components
-        ├── LeftFormPanel.tsx # Left configuration form
-        ├── PreviewPanel.tsx  # Preview panel
-        └── CodeEditorPanel.tsx # Code editor
+└── .env.example          # Environment variable example
 ```
 
 ## 🎛️ Supported Options
@@ -124,6 +126,17 @@ ai-component-generator/
 - Vue 3 + TypeScript (.vue)
 - Vue 3 + JavaScript (.vue)
 - Plain HTML + CSS + JavaScript
+
+### Component Types
+- Button
+- Card
+- Form
+- Navbar
+- Modal
+- Dropdown
+- Table
+- Chart
+- Other Custom
 
 ### UI Libraries (Dynamic)
 
@@ -171,21 +184,86 @@ ai-component-generator/
 
 ## 🔧 Tech Stack
 
-- React 18 + TypeScript + Vite
-- Tailwind CSS v3
-- Zustand (state management)
-- Radix UI (interaction primitives)
-- Express (backend API proxy)
-- Prism.js (syntax highlighting)
-- Lucide React (icons)
+- **Frontend**: React 18 + TypeScript + Vite + Tailwind CSS v3
+- **State Management**: Zustand
+- **UI Components**: Radix UI Primitives (Dialog, Select, Switch, Tabs)
+- **Icons**: Lucide React
+- **Code Editor**: react-simple-code-editor + Prism.js
+- **Backend**: Node.js + Express (local development)
+- **AI Model**: Volcengine Ark (ark-code-latest)
+- **Security Proxy**: Cloudflare Workers
+- **Routing**: React Router DOM v7
 
-## 📝 Notes
+## ⚙️ API Configuration
 
-- All model configurations stored in browser `localStorage`, no database required
-- All AI API requests proxied through backend to avoid CORS issues
-- Supports both local models (e.g., Ollama) and cloud API models
-- Preview runs in an isolated iframe, doesn't affect the main app
+The project comes with built-in configuration, **no manual setup required** (when using the recommended Cloudflare Worker proxy):
+
+| Configuration | Value |
+|--------------|-------|
+| Base URL | `https://ark.cn-beijing.volces.com/api/coding/v3/chat/completions` |
+| Model ID | `ark-code-latest` |
+| Temperature | 0.7 |
+| Max Tokens | 4096 |
+
+All API requests are proxied through Cloudflare Worker, with API Key securely stored in Cloudflare environment variables.
+
+## 🛠️ Development Guide
+
+### Local Worker Development
+
+```bash
+# Install Wrangler CLI
+npm install -g wrangler
+
+# Login to Cloudflare
+wrangler login
+
+# Run Worker locally
+npm run dev:worker
+```
+
+### Deploy Worker
+
+```bash
+# Deploy to Cloudflare
+npm run deploy:worker
+```
+
+### Securely Configure API Key
+
+```bash
+# Set secret using wrangler (won't be exposed in code)
+wrangler secret put ARK_API_KEY
+```
+
+## ❓ Troubleshooting
+
+### Worker Returns 500 Error
+
+1. Check Cloudflare Worker logs
+2. Confirm `ARK_API_KEY` environment variable is configured
+3. Verify API Key is valid
+
+### Frontend Request Fails
+
+1. Check browser console network requests
+2. Confirm `VITE_AI_PROXY_URL` is configured correctly
+3. Verify Worker is active
+
+For detailed troubleshooting, see: [Cloudflare Worker Deployment Guide](./docs/cloudflare-worker.md#troubleshooting)
+
+## 🔒 Security Recommendations
+
+- ✅ API Key stored in Cloudflare environment variables, not exposed in code
+- ✅ Rotate API Key regularly
+- ✅ Monitor Worker usage
+- ✅ Do NOT commit `.env` files to Git
+
+## 💰 Cost Information
+
+- **Cloudflare Workers**: 100,000 free requests per month
+- **Volcengine Ark API**: Pay-as-you-go, see [official pricing](https://www.volcengine.com/pricing)
 
 ## 📄 License
 
-MIT
+MIT License

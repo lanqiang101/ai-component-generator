@@ -11,7 +11,8 @@
  *     componentType: string,
  *     style: string,
  *     // ... 其他参数
- *   }
+ *   },
+ *   language?: string  // 'en' | 'zh'
  * }
  * 
  * 响应:
@@ -43,23 +44,23 @@ export async function onRequest(context: any) {
     }
 
     const body = await request.json();
-    const { params } = body;
+    const { params, language = 'en' } = body;
 
     if (!params || !params.componentName || !params.description) {
       return new Response(
-        JSON.stringify({ success: false, error: '缺少必要参数' }),
+        JSON.stringify({ success: false, error: language === 'zh' ? '缺少必要参数' : 'Missing required parameters' }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
-    // 构建需求整理提示词
-    const prompt = buildRefinementPrompt(params);
+    // 构建需求整理提示词（根据语言选择）
+    const prompt = buildRefinementPrompt(params, language);
 
     // 调用 AI 生成结构化需求
     const result = await callAI(prompt, env);
 
     // 解析 AI 返回的 JSON
-    const refinedRequirements = parseRefinedRequirements(result);
+    const refinedRequirements = parseRefinedRequirements(result, language);
 
     return new Response(
       JSON.stringify({
@@ -74,11 +75,11 @@ export async function onRequest(context: any) {
       }
     );
   } catch (error: any) {
-    console.error('需求整理失败:', error);
+    console.error('Requirements refinement failed:', error);
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message || '需求整理失败',
+        error: error.message || 'Requirements refinement failed',
       }),
       {
         status: 500,
@@ -88,10 +89,12 @@ export async function onRequest(context: any) {
   }
 }
 
-function buildRefinementPrompt(params: any): string {
+function buildRefinementPrompt(params: any, language: string = 'en'): string {
   const { componentName, description, framework, componentType, style } = params;
 
-  return `你是一个资深的前端架构师。请根据以下组件需求,进行详细的需求分析和架构设计。
+  if (language === 'zh') {
+    // 中文提示词
+    return `你是一个资深的前端架构师。请根据以下组件需求,进行详细的需求分析和架构设计。
 
 **组件信息**:
 - 名称: ${componentName}
@@ -120,9 +123,42 @@ function buildRefinementPrompt(params: any): string {
 5. 确保返回的是有效的 JSON 格式,不要添加额外的解释文字
 
 请直接返回 JSON 对象,不要添加 \`\`\`json 标记或其他前缀。`;
+  } else {
+    // English prompt
+    return `You are a senior Frontend Architect. Please conduct detailed requirements analysis and architecture design based on the following component requirements.
+
+**Component Information**:
+- Name: ${componentName}
+- Description: ${description}
+- Framework: ${framework}
+- Type: ${componentType}
+- Style: ${style}
+
+Please return the analysis results in **JSON format**, containing the following fields:
+
+\`\`\`json
+{
+  "refinedDescription": "Detailed requirements rewritten in professional terminology, including functionality, interaction, and visual requirements",
+  "componentStructure": "Component file structure and module division description",
+  "features": ["Feature 1", "Feature 2", "Feature 3"],
+  "prototypeDiagram": "Use Mermaid block-beta syntax to draw component layout prototype, e.g.:\\nblock-beta\\ncolumns 1\\n  Card[\\"Product Card\\"]\\n  Image[\\"Product Image\\"]\\n  Content[\\"Content Area\\"]",
+  "technicalNotes": ["Technical Note 1", "Technical Note 2"]
+}
+\`\`\`
+
+**Requirements**:
+1. refinedDescription: 200-400 words professional requirements description
+2. features: List at least 3-5 core features
+3. prototypeDiagram: Must use Mermaid block-beta syntax to show component visual layout
+4. technicalNotes: List 2-4 key technical implementation points
+5. Ensure the returned JSON is valid, do not add extra explanatory text
+6. **重要**: 生成的 component code中，所有代码注释必须使用英文
+
+Please return the JSON object directly, without adding \`\`\`json markers or other prefixes.`;
+  }
 }
 
-function parseRefinedRequirements(result: string): any {
+function parseRefinedRequirements(result: string, language: string = 'en'): any {
   try {
     // 尝试提取 JSON（可能包含在代码块中）
     let jsonStr = result.trim();
@@ -145,18 +181,18 @@ function parseRefinedRequirements(result: string): any {
     
     // 验证必需字段
     if (!parsed.refinedDescription || !parsed.features || !parsed.prototypeDiagram) {
-      throw new Error('需求整理结果缺少必需字段');
+      throw new Error(language === 'zh' ? '需求整理结果缺少必需字段' : 'Missing required fields in requirements refinement result');
     }
     
     return parsed;
   } catch (err) {
-    console.error('无法解析需求整理结果:', err, '\n原始结果:', result);
+    console.error('Failed to parse requirements refinement result:', err, '\nOriginal result:', result);
     // 返回默认结构
     return {
       refinedDescription: result,
-      componentStructure: '组件结构分析失败',
+      componentStructure: language === 'zh' ? '组件结构分析失败' : 'Component structure analysis failed',
       features: [],
-      prototypeDiagram: '原型图生成失败',
+      prototypeDiagram: language === 'zh' ? '原型图生成失败' : 'Prototype diagram generation failed',
       technicalNotes: [],
     };
   }

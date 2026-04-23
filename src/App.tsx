@@ -1,11 +1,48 @@
-import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { useEffect } from "react";
+import {
+  createBrowserRouter,
+  RouterProvider,
+  Outlet,
+} from "react-router-dom";
 import { HomePage } from "./pages/HomePage";
 import { useStore } from "./store/useStore";
-import { PenTool, Moon, Sun, Monitor } from "lucide-react";
+import { PenTool, Moon, Sun, Monitor, Globe } from "lucide-react";
 import { Tooltip } from "./components/ui/Tooltip";
+import { I18nProvider, useTranslation, Language } from "./i18n";
 
 function Layout() {
-  const { darkMode, toggleDarkMode } = useStore();
+  const { darkMode, toggleDarkMode, loadModels, loadSystemConfig } = useStore();
+  const { t, language } = useTranslation();
+
+  // 加载数据
+  useEffect(() => {
+    loadModels();
+    loadSystemConfig();
+  }, [loadModels, loadSystemConfig]);
+
+  // 处理暗黑模式
+  useEffect(() => {
+    const root = document.documentElement;
+    if (darkMode === "auto") {
+      root.classList.remove("dark");
+    } else if (darkMode) {
+      root.classList.add("dark");
+      root.style.setProperty("--bg-gradient-from", "#0f172a");
+      root.style.setProperty("--bg-gradient-to", "#020617");
+      root.style.setProperty("--card-bg", "#1e293b");
+      root.style.setProperty("--text-primary", "#f1f5f9");
+      root.style.setProperty("--text-secondary", "#cbd5e1");
+      root.style.setProperty("--border-color", "#334155");
+    } else {
+      root.classList.remove("dark");
+      root.style.removeProperty("--bg-gradient-from");
+      root.style.removeProperty("--bg-gradient-to");
+      root.style.removeProperty("--card-bg");
+      root.style.removeProperty("--text-primary");
+      root.style.removeProperty("--text-secondary");
+      root.style.removeProperty("--border-color");
+    }
+  }, [darkMode]);
 
   const getDarkModeIcon = () => {
     if (darkMode === "auto") return <Monitor size={20} />;
@@ -14,9 +51,15 @@ function Layout() {
   };
 
   const getDarkModeTooltip = () => {
-    if (darkMode === "auto") return "自动（跟随系统）";
-    if (darkMode) return "暗黑模式";
-    return "浅色模式";
+    if (darkMode === "auto") return t.header.darkModeAuto;
+    if (darkMode) return t.header.darkModeDark;
+    return t.header.darkModeLight;
+  };
+
+  const toggleLanguage = () => {
+    // Switch language by navigating to different route and refreshing
+    const newPath = language === 'en' ? '/zh' : '/';
+    window.location.href = newPath;
   };
 
   return (
@@ -31,17 +74,58 @@ function Layout() {
                 </div>
                 <div>
                   <h1 className="text-base font-semibold text-gray-900 dark:text-white">
-                    AI 组件生成器
+                    {t.common.appName}
                   </h1>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    智能生成前端组件
+                    {t.common.appSubtitle}
                   </p>
                 </div>
               </div>
             </div>
 
+            {/* <nav className="hidden md:flex items-center gap-1">
+              <a
+                href="/"
+                className={`px-3 py-2 text-sm font-medium rounded-md transition-all ${
+                  location.pathname === '/'
+                    ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                {t.pages.generator}
+              </a>
+              <a
+                href="/config"
+                className={`px-3 py-2 text-sm font-medium rounded-md transition-all ${
+                  location.pathname === '/config'
+                    ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                {t.pages.modelConfig}
+              </a>
+              <a
+                href="/models"
+                className={`px-3 py-2 text-sm font-medium rounded-md transition-all ${
+                  location.pathname === '/models'
+                    ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                {t.pages.modelManagement}
+              </a>
+            </nav> */}
+
             <div className="flex items-center gap-2">
-              {/* Dark mode toggle */}
+              <Tooltip content={language === 'en' ? 'Switch to Chinese' : '切换到英文'}>
+                <button
+                  onClick={toggleLanguage}
+                  className="p-2 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 rounded-md transition-all"
+                >
+                  <Globe size={20} />
+                </button>
+              </Tooltip>
+              
               <Tooltip content={getDarkModeTooltip()}>
                 <button
                   onClick={toggleDarkMode}
@@ -59,88 +143,42 @@ function Layout() {
         <Outlet />
       </main>
 
-      <footer className="py-6 text-center border-t border-gray-200 dark:border-slate-800 max-w-[1800px] mx-auto bg-white dark:bg-slate-900">
-        <div className="flex flex-col items-center gap-3">
-          {/* Logo and brand */}
-          <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 text-sm">
-            <PenTool size={16} />
-            <span className="font-medium">AI Component Generator</span>
-          </div>
-
-          {/* Links section */}
-          <div className="flex items-center gap-4 text-sm">
-            {/* GitHub link */}
-            <a
-              href="https://github.com/lanqiang101/ai-component-generator"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 px-3 py-1.5 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800 rounded-md transition-all"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-                aria-hidden="true"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              <span>GitHub</span>
-            </a>
-
-            {/* Separator */}
-            <span className="text-gray-300 dark:text-gray-600">|</span>
-
-            {/* Sponsor link */}
-            <a
-              href="https://paypal.me/lanqiang"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 px-3 py-1.5 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md transition-all font-medium"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-                aria-hidden="true"
-              >
-                <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944.901C5.026.382 5.474 0 5.998 0h7.46c2.57 0 4.578.543 5.69 1.81 1.01 1.15 1.304 2.42 1.012 4.287-.023.143-.047.288-.077.437-.983 5.05-4.349 6.797-8.647 6.797h-2.19c-.524 0-.968.382-1.05.9l-1.12 7.106zm14.146-14.42a3.35 3.35 0 0 0-.607-.541c-.013.076-.026.175-.041.254-.93 4.778-4.005 7.201-9.138 7.201h-2.19a.563.563 0 0 0-.556.479l-1.187 7.527h-.506l-.24 1.516a.56.56 0 0 0 .554.647h3.882c.46 0 .85-.334.922-.788.06-.26.76-4.852.816-5.09a.932.932 0 0 1 .923-.788h.58c3.76 0 6.705-1.528 7.565-5.946.36-1.847.174-3.388-.777-4.471z" />
-              </svg>
-              <span>Sponsor</span>
-            </a>
-          </div>
-
-          {/* Copyright */}
-          <p className="text-xs text-gray-400 dark:text-gray-500">
-            © {new Date().getFullYear()} AI Component Generator. All rights
-            reserved.
-          </p>
+      <footer className="py-4 text-center text-gray-400 dark:text-gray-500 text-xs border-t border-gray-200 dark:border-slate-800 max-w-[1800px] mx-auto">
+        <div className="flex items-center justify-center gap-2">
+          <PenTool size={14} />
+          <span>AI Component Generator</span>
         </div>
       </footer>
     </div>
   );
 }
 
-// 需要 Outlet 组件
-import { Outlet } from "react-router-dom";
-
-const router = createBrowserRouter([
-  {
-    path: "/",
-    element: <Layout />,
-    children: [
-      { index: true, element: <HomePage /> },
-      // { path: "config", element: <ConfigPage /> },
-      // { path: "models", element: <ModelManagementPage /> },
-    ],
-  },
-]);
+// Create language-aware router
+const createRouter = (language: Language) => {
+  return createBrowserRouter([
+    {
+      path: language === 'zh' ? '/zh' : '/',
+      element: (
+        <I18nProvider language={language}>
+          <Layout />
+        </I18nProvider>
+      ),
+      children: [
+        { index: true, element: <HomePage /> },
+      ],
+    },
+  ]);
+};
 
 function App() {
-  return <RouterProvider router={router} />;
+  // Determine language from URL path
+  const isZh = window.location.pathname.startsWith('/zh');
+  const language: Language = isZh ? 'zh' : 'en';
+  const router = createRouter(language);
+
+  return (
+    <RouterProvider router={router} />
+  );
 }
 
 export default App;

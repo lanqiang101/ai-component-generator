@@ -5,7 +5,8 @@
  * 请求体:
  * {
  *   description: string,      // 简短的组件描述
- *   componentName?: string    // 可选的组件名称
+ *   componentName?: string,   // 可选的组件名称
+ *   language?: string         // 语言: 'en' | 'zh'
  * }
  * 
  * 响应:
@@ -31,7 +32,7 @@ export async function onRequest(context: any) {
     }
 
     const body = await request.json();
-    const { description, componentName } = body;
+    const { description, componentName, language = 'en' } = body;
 
     if (!description) {
       return new Response(
@@ -40,8 +41,8 @@ export async function onRequest(context: any) {
       );
     }
 
-    // 构建扩写提示词
-    const prompt = buildExpandPrompt(description, componentName);
+    // 构建扩写提示词（根据语言选择）
+    const prompt = buildExpandPrompt(description, componentName, language);
 
     // 调用 AI 生成扩写文本
     const expandedDescription = await callAI(prompt, env);
@@ -59,11 +60,11 @@ export async function onRequest(context: any) {
       }
     );
   } catch (error: any) {
-    console.error('扩写失败:', error);
+    console.error('Description expansion failed:', error);
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message || '扩写失败',
+        error: error.message || 'Description expansion failed',
       }),
       {
         status: 500,
@@ -73,8 +74,10 @@ export async function onRequest(context: any) {
   }
 }
 
-function buildExpandPrompt(description: string, componentName?: string): string {
-  return `你是一个专业的产品经理和前端架构师。请根据以下简短的组件描述,扩写成详细、专业的前端组件需求说明。
+function buildExpandPrompt(description: string, componentName?: string, language: string = 'en'): string {
+  if (language === 'zh') {
+    // 中文提示词
+    return `你是一个专业的产品经理和前端架构师。请根据以下简短的组件描述,扩写成详细、专业的前端组件需求说明。
 
 组件名称: ${componentName || '未指定'}
 简要描述: ${description}
@@ -95,4 +98,30 @@ function buildExpandPrompt(description: string, componentName?: string): string 
 - 字数控制在 200-400 字之间
 
 请直接返回扩写后的需求描述,不要添加任何前缀或后缀。`;
+  } else {
+    // English prompt
+    return `You are a professional Product Manager and Frontend Architect. Please expand the following brief component description into a detailed, professional frontend component requirement specification.
+
+Component Name: ${componentName || 'Not specified'}
+Brief Description: ${description}
+
+Please describe in detail from the following aspects:
+
+1. **Functional Requirements**: What core features should the component have? How do users interact with it?
+2. **Visual Design**: Layout structure, color scheme, spacing, border radius, and other visual characteristics
+3. **Data Display**: What data fields need to be displayed? What are the data formats and types?
+4. **Interaction Behavior**: Feedback effects in hover, click, loading, and other states
+5. **Responsive Requirements**: Adaptation strategies for different screen sizes
+6. **Edge Cases**: Handling of empty states, loading states, and error states
+
+Requirements:
+- Use professional frontend terminology
+- Descriptions should be specific and actionable
+- Avoid vague expressions
+- Word count should be between 200-400 words
+
+IMPORTANT: All code comments MUST be written in English.
+
+Please return the expanded requirement description directly, without any prefixes or suffixes.`;
+  }
 }

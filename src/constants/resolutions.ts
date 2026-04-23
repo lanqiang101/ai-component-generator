@@ -1,15 +1,15 @@
 import type { PreviewResolution, ResolutionPreset } from '../types';
 
 export const resolutionPresets: Record<PreviewResolution, ResolutionPreset> = {
-  // 全屏自适应
+  // Fullscreen adaptive
   full: {
     key: 'full',
-    label: '全屏自适应',
+    label: 'Fullscreen Adaptive',
     width: '100%',
     height: '100%',
   },
   
-  // iPhone 系列
+  // iPhone series
   'iphone-se': {
     key: 'iphone-se',
     label: 'iPhone SE (375×667)',
@@ -35,7 +35,7 @@ export const resolutionPresets: Record<PreviewResolution, ResolutionPreset> = {
     height: 932,
   },
   
-  // Google Pixel 系列
+  // Google Pixel series
   'pixel-7': {
     key: 'pixel-7',
     label: 'Pixel 7 (412×915)',
@@ -49,7 +49,7 @@ export const resolutionPresets: Record<PreviewResolution, ResolutionPreset> = {
     height: 1024,
   },
   
-  // Samsung Galaxy 系列
+  // Samsung Galaxy series
   'galaxy-s8': {
     key: 'galaxy-s8',
     label: 'Galaxy S8+ (360×740)',
@@ -75,7 +75,7 @@ export const resolutionPresets: Record<PreviewResolution, ResolutionPreset> = {
     height: 914,
   },
   
-  // iPad 系列
+  // iPad series
   'ipad-mini': {
     key: 'ipad-mini',
     label: 'iPad Mini (768×1024)',
@@ -95,7 +95,7 @@ export const resolutionPresets: Record<PreviewResolution, ResolutionPreset> = {
     height: 1366,
   },
   
-  // Surface 系列
+  // Surface series
   'surface-duo': {
     key: 'surface-duo',
     label: 'Surface Duo (540×720)',
@@ -109,7 +109,7 @@ export const resolutionPresets: Record<PreviewResolution, ResolutionPreset> = {
     height: 1368,
   },
   
-  // 折叠屏
+  // Foldable screens
   'zenbook-fold': {
     key: 'zenbook-fold',
     label: 'Zenbook Fold (853×1280)',
@@ -131,16 +131,16 @@ export const resolutionPresets: Record<PreviewResolution, ResolutionPreset> = {
     height: 800,
   },
   
-  // 传统设备
+  // Traditional devices
   laptop: {
     key: 'laptop',
-    label: '笔记本 (1366×768)',
+    label: 'Laptop (1366×768)',
     width: 1366,
     height: 768,
   },
   desktop: {
     key: 'desktop',
-    label: '桌面 (1920×1080)',
+    label: 'Desktop (1920×1080)',
     width: 1920,
     height: 1080,
   },

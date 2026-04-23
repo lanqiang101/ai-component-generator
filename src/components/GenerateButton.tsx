@@ -1,9 +1,11 @@
 import React from 'react';
 import { Zap, Loader2 } from 'lucide-react';
 import { useStore } from '../store/useStore';
+import { useTranslation } from '../i18n';
 
 export const GenerateButton: React.FC = () => {
   const { generation, generateComponent, isRefiningRequirements } = useStore();
+  const { t } = useTranslation();
 
   // 判断是否正在处理（包括需求整理和代码生成）
   const isProcessing = generation.isGenerating || isRefiningRequirements;
@@ -17,12 +19,12 @@ export const GenerateButton: React.FC = () => {
       {isProcessing ? (
         <>
           <Loader2 size={18} className="animate-spin" />
-          <span>{isRefiningRequirements ? 'AI 整理需求中...' : '生成中...'}</span>
+          <span>{isRefiningRequirements ? t.progress.analyzing : t.common.generating}</span>
         </>
       ) : (
         <>
           <Zap size={18} />
-          <span>生成组件</span>
+          <span>{t.common.generate}</span>
           <span className="text-xs opacity-70 ml-1">
             (⌘/Ctrl + Enter)
           </span>

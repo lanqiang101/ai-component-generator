@@ -4,6 +4,7 @@ import { X, Loader2, Check, AlertCircle, BookOpen, ChevronRight } from 'lucide-r
 import mermaid from 'mermaid';
 import { useStore } from '../store/useStore';
 import type { ComponentGenerationParams } from '../types';
+import { useTranslation } from '../i18n';
 
 // 初始化 Mermaid
 mermaid.initialize({
@@ -368,6 +369,7 @@ export const RequirementsRefinementDialog: React.FC = () => {
     setParams,
     generateComponent,
   } = useStore();
+  const { t } = useTranslation();
 
   const [editedDescription, setEditedDescription] = useState('');
   const [showTemplates, setShowTemplates] = useState(false);
@@ -416,19 +418,19 @@ export const RequirementsRefinementDialog: React.FC = () => {
             <div className="flex items-center gap-3">
               <div>
                 <Dialog.Title className="text-lg font-semibold text-gray-900">
-                  需求整理与确认
+                  {t.refinement.title}
                 </Dialog.Title>
                 <Dialog.Description className="text-sm text-gray-500 mt-1">
-                  AI 已整理您的需求，请检查并确认后生成组件
+                  AI has analyzed your requirements. Please review and confirm to generate the component.
                 </Dialog.Description>
               </div>
               <button
                 onClick={() => setShowTemplates(true)}
                 className="ml-4 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors flex items-center gap-1"
-                title="使用预设模板快速填充表单"
+                title="Use preset templates to quickly fill the form"
               >
                 <BookOpen size={14} />
-                <span>模板库</span>
+                <span>Template Library</span>
               </button>
             </div>
             <Dialog.Close className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
@@ -482,16 +484,16 @@ export const RequirementsRefinementDialog: React.FC = () => {
             {isRefiningRequirements ? (
               <div className="flex flex-col items-center justify-center py-12">
                 <Loader2 size={32} className="animate-spin text-blue-600 mb-4" />
-                <p className="text-gray-700 font-medium mb-2">AI 正在分析您的需求...</p>
-                <p className="text-sm text-gray-500">正在生成组件结构、功能点和原型示意图</p>
+                <p className="text-gray-700 font-medium mb-2">{t.progress.analyzing}</p>
+                <p className="text-sm text-gray-500">Generating component structure, features, and prototype diagram</p>
               </div>
             ) : refinedRequirements ? (
               <>
                 {/* 整理后的需求描述 */}
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-gray-700">📝 整理后的需求描述</span>
-                    <span className="text-xs text-gray-500">（可编辑）</span>
+                    <span className="text-sm font-semibold text-gray-700">📝 {t.refinement.refinedDescription}</span>
+                    <span className="text-xs text-gray-500">（Editable）</span>
                   </div>
                   <textarea
                     value={editedDescription}
@@ -505,14 +507,14 @@ export const RequirementsRefinementDialog: React.FC = () => {
                 {refinedRequirements.componentStructure && (
                   <SmartDiagramDisplay 
                     content={refinedRequirements.componentStructure}
-                    title="🏗️ 组件结构图"
+                    title="🏗️ Component Structure"
                   />
                 )}
 
                 {/* 功能点列表 */}
                 {refinedRequirements.features && (
                   <div className="space-y-3">
-                    <h4 className="text-sm font-semibold text-gray-700">✨ 功能点</h4>
+                    <h4 className="text-sm font-semibold text-gray-700">✨ {t.refinement.features}</h4>
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                       <ul className="space-y-2">
                         {safeParseJSONArray(refinedRequirements.features).map((feature: string, index: number) => (
@@ -530,14 +532,14 @@ export const RequirementsRefinementDialog: React.FC = () => {
                 {refinedRequirements.prototypeDiagram && (
                   <SmartDiagramDisplay 
                     content={refinedRequirements.prototypeDiagram}
-                    title="🎨 原型示意图"
+                    title="🎨 Prototype Diagram"
                   />
                 )}
 
                 {/* 技术要点 */}
                 {refinedRequirements.technicalNotes && (
                   <div className="space-y-3">
-                    <h4 className="text-sm font-semibold text-gray-700">⚙️ 技术要点</h4>
+                    <h4 className="text-sm font-semibold text-gray-700">⚙️ {t.refinement.technicalNotes}</h4>
                     <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
                       <ul className="space-y-2">
                         {safeParseJSONArray(refinedRequirements.technicalNotes).map((note: string, index: number) => (
@@ -553,7 +555,7 @@ export const RequirementsRefinementDialog: React.FC = () => {
               </>
             ) : (
               <div className="text-center py-12 text-gray-500">
-                暂无需求整理数据
+                No requirement data available
               </div>
             )}
           </div>
@@ -564,7 +566,7 @@ export const RequirementsRefinementDialog: React.FC = () => {
               onClick={cancelRefinement}
               className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
             >
-              取消
+              {t.common.cancel}
             </button>
             <button
               onClick={handleConfirm}
@@ -574,12 +576,12 @@ export const RequirementsRefinementDialog: React.FC = () => {
               {isRefiningRequirements ? (
                 <>
                   <Loader2 size={16} className="animate-spin" />
-                  <span>整理中...</span>
+                  <span>{t.common.generating}</span>
                 </>
               ) : (
                 <>
                   <Check size={16} />
-                  <span>确认生成</span>
+                  <span>{t.refinement.confirmAndGenerate}</span>
                 </>
               )}
             </button>
