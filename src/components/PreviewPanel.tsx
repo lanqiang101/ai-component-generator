@@ -15,10 +15,10 @@ import {
 } from "lucide-react";
 import { useTranslation } from '../i18n';
 
-// 设备类型定义
+// Device type definition
 type DeviceType = 'desktop' | 'tablet' | 'mobile';
 
-// 设备类型配置 - 使用国际化标签
+// Device type configuration - using internationalized labels
 const getDevicePresets = (t: any) => ({
   desktop: {
     label: t.preview.desktop,
@@ -66,193 +66,193 @@ const getResolutionLabel = (key: PreviewResolution, t: any): string => {
   return labelMap[key] || key;
 };
 
-// 辅助函数: 检查常见的 AI 生成语法错误
+// Helper function: Check common AI-generated syntax errors
 function checkCommonSyntaxErrors(code: string): string[] {
   const errors: string[] = [];
 
-  // 1. 检测三元运算符中使用点号代替冒号的错误
-  // 错误示例: ...(isOutOfStock ? styles.outOfStockTag.inStockTag)
-  // 正确示例: ...(isOutOfStock ? styles.outOfStockTag : styles.inStockTag)
+  // 1. Detect ternary operator using dot instead of colon error
+  // Error example: ...(isOutOfStock ? styles.outOfStockTag.inStockTag)
+  // Correct example: ...(isOutOfStock ? styles.outOfStockTag : styles.inStockTag)
   const ternaryDotPattern = /\?\s*\w+\.\w+\.\w+\s*[),}]/g;
   const ternaryMatches = code.match(ternaryDotPattern);
   if (ternaryMatches) {
     ternaryMatches.forEach((match) => {
-      // 提取行号
+      // Extract line number
       const lines = code.substring(0, code.indexOf(match)).split('\n');
       const lineNumber = lines.length;
       errors.push(
-        `第 ${lineNumber} 行: 三元运算符语法错误 "${match.trim()}"，应该是 "? value1 : value2" 而不是 "? obj1.obj2"`
+        `Line ${lineNumber}: Ternary operator syntax error "${match.trim()}", should be "? value1 : value2" not "? obj1.obj2"`
       );
     });
   }
 
-  // 2. 检测未闭合的括号 (简单检测)
+  // 2. Detect unclosed parentheses (simple check)
   const openParens = (code.match(/\(/g) || []).length;
   const closeParens = (code.match(/\)/g) || []).length;
   if (openParens !== closeParens) {
-    errors.push(`括号不匹配: ${openParens} 个 "(" 但只有 ${closeParens} 个 ")"`);
+    errors.push(`Parentheses mismatch: ${openParens} "(" but only ${closeParens} ")"`);
   }
 
   const openBraces = (code.match(/\{/g) || []).length;
   const closeBraces = (code.match(/\}/g) || []).length;
   if (openBraces !== closeBraces) {
-    errors.push(`大括号不匹配: ${openBraces} 个 "{" 但只有 ${closeBraces} 个 "}"`);
+    errors.push(`Braces mismatch: ${openBraces} "{" but only ${closeBraces} "}"`);
   }
 
-  // 3. 检测常见的事件处理器类型注解错误
-  // 错误示例: (e.MouseEvent) => 应该是 (e: MouseEvent) =>
+  // 3. Detect common event handler type annotation errors
+  // Error example: (e.MouseEvent) => Should be (e: MouseEvent) =>
   const wrongEventTypePattern = /\(\w+\.MouseEvent\)/g;
   const eventTypeMatches = code.match(wrongEventTypePattern);
   if (eventTypeMatches) {
     errors.push(
-      `发现类型注解语法错误: ${eventTypeMatches.join(', ')}。前端渲染不支持 TypeScript，应移除类型注解。`
+      `Found type annotation syntax errors: ${eventTypeMatches.join(', ')}. Frontend rendering does not support TypeScript, remove type annotations.`
     );
   }
 
   return errors;
 }
 
-// 提取组件名称
+// Extract component name
 function extractComponentName(code: string): string {
-  console.log('🔍 开始提取组件名...');
+  console.log('🔍 Starting to extract component name...');
   
-  // 0. 如果是多文件结构，从 FILE 标记中提取主组件文件名
+  // 0. If it's a multi-file structure, extract the main component file name from FILE markers
   const fileRegex = /\/\/\s*======\s*FILE:\s*([^\n]+)\s*======/g;
   const files: string[] = [];
   let match;
   while ((match = fileRegex.exec(code)) !== null) {
     const fileName = match[1].trim();
     files.push(fileName);
-    console.log(`  - 发现文件: ${fileName}`);
+    console.log(`  - Found file: ${fileName}`);
   }
   
-  // 如果有多文件，尝试从主组件文件（component.tsx 或 index.tsx）提取
+  // If there are multiple files, try to extract from the main component file (component.tsx or index.tsx)
   if (files.length > 1) {
     const mainFile = files.find(f => 
       f.includes('component') || f.includes('index') || f.includes('App')
     );
     if (mainFile) {
-      // 从文件名提取组件名（去掉扩展名，转为首字母大写）
+      // Extract component name from file name (remove extension, capitalize first letter)
       const componentName = mainFile
         .replace(/\.(tsx|ts|jsx|js)$/, '')
         .replace(/[-_]/g, ' ')
         .split(' ')
         .map(word => word.charAt(0).toUpperCase() + word.slice(1))
         .join('');
-      console.log(`✅ 从多文件结构提取组件名: ${componentName}`);
+      console.log(`✅ Extracted component name from multi-file structure: ${componentName}`);
       return componentName;
     }
   }
 
-  // 1. 优先查找 export default 的组件名
+  // 1. Prioritize matching export default function name
   const exportDefaultMatch = code.match(
     /export\s+default\s+function\s+(\w+)/,
   );
   if (exportDefaultMatch) {
-    console.log(`✅ 匹配到 export default function: ${exportDefaultMatch[1]}`);
+    console.log(`✅ Matched export default function: ${exportDefaultMatch[1]}`);
     return exportDefaultMatch[1];
   }
 
-  // 2. 查找 export default 的变量名
+  // 2. Match export default variable name
   const exportDefaultVarMatch = code.match(
     /export\s+default\s+(\w+)\s*;/,
   );
   if (exportDefaultVarMatch) {
-    console.log(`✅ 匹配到 export default 变量: ${exportDefaultVarMatch[1]}`);
+    console.log(`✅ Matched export default variable: ${exportDefaultVarMatch[1]}`);
     return exportDefaultVarMatch[1];
   }
 
-  // 3. 查找 export default 的箭头函数
+  // 3. Match export default arrow function
   const exportDefaultArrowMatch = code.match(
     /export\s+default\s+\(\s*\)\s*=>\s*\{/,
   );
   if (exportDefaultArrowMatch) {
-    // 尝试从注释或上下文中找到组件名
+    // Try to find component name from comments or context
     const componentMatch = code.match(
-      /\/\/\s*主组件[：:]\s*(\w+)|\/\*\s*主组件[：:]\s*(\w+)/,
+      /\/\/\s*Main component[：:]\s*(\w+)|\/\*\s*Main component[：:]\s*(\w+)/,
     );
     const name = componentMatch?.[1] || componentMatch?.[2] || "MainComponent";
-    console.log(`⚠️ 匿名箭头函数，使用默认名: ${name}`);
+    console.log(`⚠️ Anonymous arrow function, using default name: ${name}`);
     return name;
   }
 
-  // 4. 尝试找 function Component (大写字母开头)
+  // 4. Try to find function Component (capital letter start)
   const functionMatch = code.match(/function\s+([A-Z]\w+)/);
   if (functionMatch) {
-    console.log(`✅ 匹配到 function 声明: ${functionMatch[1]}`);
+    console.log(`✅ Matched function declaration: ${functionMatch[1]}`);
     return functionMatch[1];
   }
 
-  // 5. 尝试找 const Component = （大写字母开头，通常是组件）
+  // 5. Try to find const Component = (capital letter start, usually a component)
   const constMatch = code.match(/const\s+([A-Z]\w+)\s*=\s*\(?[^)]*\)?\s*=>/);
   if (constMatch) {
-    console.log(`✅ 匹配到 const 箭头函数: ${constMatch[1]}`);
+    console.log(`✅ Matched const arrow function: ${constMatch[1]}`);
     return constMatch[1];
   }
 
-  // 6. 尝试找 const Component = function
+  // 6. Try to find const Component = function
   const constFunctionMatch = code.match(/const\s+([A-Z]\w+)\s*=\s*function/);
   if (constFunctionMatch) {
-    console.log(`✅ 匹配到 const function: ${constFunctionMatch[1]}`);
+    console.log(`✅ Matched const function: ${constFunctionMatch[1]}`);
     return constFunctionMatch[1];
   }
 
-  // 7. 最后兜底：从第一个大写字母开头的标识符推断
+  // 7. Last resort: Infer from the first capital letter identifier
   const firstComponentMatch = code.match(/\b([A-Z][a-zA-Z]+)\s*[=:]/);
   if (firstComponentMatch) {
-    console.log(`⚠️ 兜底策略，使用第一个组件名: ${firstComponentMatch[1]}`);
+    console.log(`⚠️ Fallback strategy, using first component name: ${firstComponentMatch[1]}`);
     return firstComponentMatch[1];
   }
 
-  // 8. 实在找不到，返回默认值
-  console.warn('❌ 无法提取组件名，使用默认值 "App"');
-  console.log('代码片段:', code.substring(0, 200));
+  // 8. If all else fails, return default value
+  console.warn('❌ Unable to extract component name, using default value "App"');
+  console.log('Code snippet:', code.substring(0, 200));
   return "App";
 }
 
-// 预处理代码: 移除类型注解、导入语句等,使其能在浏览器中运行
+// Preprocess code: Remove type annotations, import statements, etc. to make it runnable in the browser
 function preprocessCodeForBrowser(code: string): string {
   let processed = code;
 
-  // ⚠️ 语法检查: 在预处理之前先检测常见语法错误
+  // ⚠️ Syntax check: Check for common syntax errors before preprocessing
   const syntaxErrors = checkCommonSyntaxErrors(processed);
   if (syntaxErrors.length > 0) {
-    console.error('⚠️ 检测到语法错误:', syntaxErrors);
-    // 抛出错误,让上层处理
+    console.error('⚠️ Syntax errors detected:', syntaxErrors);
+    // Throw error for upper layer to handle
     throw new Error(
-      `代码包含语法错误:\n${syntaxErrors.map((err, i) => `${i + 1}. ${err}`).join('\n')}\n\n请重新生成代码。`
+      `Code contains syntax errors:\n${syntaxErrors.map((err, i) => `${i + 1}. ${err}`).join('\n')}\n\nPlease regenerate the code.`
     );
   }
 
-  // 1. 移除所有 export 关键字（包括 export default、export const 等）
-  // ⚠️ 重要：使用更精确的正则，避免产生双重 export 或语法错误
-  // 错误示例: "export export function" 或 "export const export"
+  // 1. Remove all export keywords (including export default, export const, etc.)
+  // ⚠️ Important: Use more precise regex to avoid double export or syntax errors
+  // Error example: "export export function" or "export const export"
   processed = processed.replace(/^export\s+default\s+/gm, '');
   processed = processed.replace(/^export\s+(const|let|var|function|class|interface|type|enum)\s+/gm, '$1 ');
   processed = processed.replace(/\bexport\s*\{[^}]*\}\s*;?/gm, ''); // export { ... }
   processed = processed.replace(/\bexport\s+\*\s+from\s+['"][^'"]+['"]\s*;?/gm, ''); // export * from '...'
 
-  // 1.5 ⚠️ 新增: 移除 CommonJS 模块导出语法（浏览器不支持）
-  // 错误示例: exports.someFunction = function() {}
-  // 错误示例: module.exports = { ... }
-  // 移除所有 exports.xxx 和 module.exports 语句
+  // 1.5 ⚠️ New: Remove CommonJS module export syntax (not supported in browsers)
+  // Error example: exports.someFunction = function() {}
+  // Error example: module.exports = { ... }
+  // Remove all exports.xxx and module.exports statements
   processed = processed.replace(/^exports\.\w+\s*=\s*[^;]+;?\s*$/gm, '');
   processed = processed.replace(/^module\.exports\s*=\s*[^;]+;?\s*$/gm, '');
   processed = processed.replace(/\bexports\s*=\s*\{[^}]*\};?/g, '');
 
-  // 2. 移除 Markdown 代码块标记
+  // 2. Remove code block markers
   processed = processed.replace(/```(?:tsx|typescript|javascript|jsx|vue)?\n?/gi, '');
   processed = processed.replace(/\n?```\s*$/g, '');
 
-  // 3. 移除结束标记
+  // 3. Remove end markers
   processed = processed.replace(/\/\/ \[END_OF_CODE\]/g, '');
   processed = processed.replace(/\/\/ \[FILE_END\]/g, '');
 
-  // 4. 处理 import 语句
-  // 4.1 移除 React 导入,但保留 React 命名空间的使用
+  // 4. Process import statements
+  // 4.1 Remove React import, but keep React namespace usage
   processed = processed.replace(/import\s+React\s+from\s+['"]react['"]\s*;?/g, '');
 
-  // 4.2 移除 React hooks 的解构导入,替换为 React.useState 等
+  // 4.2 Remove React hooks destructuring import, replace with React.useState etc.
   const hooks = [
     'useState',
     'useEffect',
@@ -264,7 +264,7 @@ function preprocessCodeForBrowser(code: string): string {
     'useLayoutEffect',
   ];
 
-  // 先提取所有 React hooks 的导入
+  // First extract all React hooks imports
   const reactImportMatch = processed.match(
     /import\s+\{([^}]+)\}\s+from\s+['"]react['"]\s*;?/
   );
@@ -274,95 +274,95 @@ function preprocessCodeForBrowser(code: string): string {
       .map((h: string) => h.trim())
       .filter((h: string) => hooks.includes(h));
 
-    // 移除 React 导入行
+    // Remove React import line
     processed = processed.replace(
       /import\s+\{[^}]+\}\s+from\s+['"]react['"]\s*;?/g,
       ''
     );
 
-    // 将使用的 hooks 替换为 React.hook 形式
+    // Replace used hooks with React.hook form
     importedHooks.forEach((hook: string) => {
       const regex = new RegExp(`\\b${hook}\\b`, 'g');
       processed = processed.replace(regex, `React.${hook}`);
     });
   }
 
-  // 4.4 处理其他库的 import (如 lucide-react)
+  // 4.4 Process other library imports (e.g., lucide-react)
   processed = processed.replace(
     /import\s+.*?\s+from\s+['"][^'"]+['"]\s*;?/g,
     "// Import removed for browser preview",
   );
 
-  // 5. 移除 TypeScript 类型注解（使用更安全的方法）
+  // 5. Remove TypeScript type annotations (use safer method)
 
-  // 5.0 移除独立的类型定义语句（如：(product: Product) => void;）
-  // 匹配模式：以 ( 或标识符开头，包含 : Type，以 ; 结尾的独立行
+  // 5.0 Remove standalone type definition statements (e.g., (product: Product) => void;)
+  // Match pattern: starts with ( or identifier, contains : Type, ends with ;
   processed = processed.replace(/^\s*\([^)]*:\s*\w+\)\s*=>\s*\w+;\s*$/gm, '');
   processed = processed.replace(/^\s*\w+\s*:\s*\w+\s*=>\s*\w+;\s*$/gm, '');
 
-  // 5.1 处理 React.FC<Props> 类型的变量声明
+  // 5.1 Process React.FC<Props> type variable declarations
   processed = processed.replace(
     /(const|let|var)\s+(\w+)\s*:\s*React\.FC\s*<[^>]*>\s*=/g,
     "$1 $2 =",
   );
 
-  // 5.2 处理其他泛型类型注解的变量声明
+  // 5.2 Process other generic type annotation variable declarations
   processed = processed.replace(
     /(const|let|var)\s+(\w+)\s*:\s*\w+<[^>]*>\s*=/g,
     "$1 $2 =",
   );
 
-  // 5.3 处理函数参数的对象解构类型注解
-  // 使用更安全的方法：先找到函数定义，然后处理其参数
-  // 匹配模式：function Name(params: Type) 或 const Name = (params: Type) =>
-  // 策略：移除函数参数列表中最后一个 : { ... } 或 : Type
+  // 5.3 Process function parameter object destructuring type annotations
+  // Use safer method: First find function definition, then process its parameters
+  // Match pattern: function Name(params: Type) or const Name = (params: Type) =>
+  // Strategy: Remove last : { ... } or : Type in function parameter list
 
-  // 先处理箭头函数的参数类型
+  // First process arrow function parameters
   processed = processed.replace(
     /((?:const|let|var)\s+\w+\s*=\s*)\(([^)]*)\)\s*:\s*(?:React\.FC<[^>]*>|\{[^}]*\}|\w+(?:<[^>]*>)?)\s*=>/g,
     "$1($2) =>",
   );
 
-  // 处理普通函数的参数类型
+  // Process regular function parameters
   processed = processed.replace(
     /(function\s+\w+\s*)\(([^)]*)\)\s*:\s*(?:void|string|number|boolean|any|React\.\w+|\{[^}]*\})/g,
     "$1($2)",
   );
 
-  // ⚠️ 新增: 处理多行的对象类型注解（如 Props 接口）
-  // 匹配模式: function Name({ param1, param2 }: {\n  param1: Type;\n  param2: Type;\n})
-  // 策略: 移除整个 : { ... } 部分
+  // ⚠️ New: Process multiline object type annotations (e.g., Props interface)
+  // Match pattern: function Name({ param1, param2 }: {\n  param1: Type;\n  param2: Type;\n})
+  // Strategy: Remove entire : { ... } part
   processed = processed.replace(
     /(function\s+\w+\s*\(\{[^}]*\}\s*)\s*:\s*\{[\s\S]*?\}\s*\)/g,
     "$1)"
   );
   
-  // 处理箭头函数的多行对象类型
+  // Process arrow function multiline object
   processed = processed.replace(
     /((?:const|let|var)\s+\w+\s*=\s*\(\{[^}]*\}\s*)\s*:\s*\{[\s\S]*?\}\s*\)\s*=>/g,
     "$1) =>"
   );
 
-  // 5.4 移除变量声明中的类型注解（更精确的匹配）
-  // 只处理明显的类型注解模式：const/let/var name: Type =
+  // 5.4 Remove type annotations in variable declarations (more precise matching)
+  // Only process obvious type annotation patterns: const/let/var name: Type =
   processed = processed.replace(
     /(const|let|var)\s+(\w+)\s*:\s*(?:string|number|boolean|any|never|unknown|null|undefined)\s*=/g,
     "$1 $2 =",
   );
 
-  // 处理数组类型
+  // Process array types
   processed = processed.replace(
     /(const|let|var)\s+(\w+)\s*:\s*(?:\w+\[\]|\[\s*\w+\s*\])\s*=/g,
     "$1 $2 =",
   );
 
-  // 处理对象类型（简单对象，不包含嵌套）
+  // Process object types (simple object, no nested)
   processed = processed.replace(
     /(const|let|var)\s+(\w+)\s*:\s*\{[^{}\n]*\}\s*=/g,
     "$1 $2 =",
   );
 
-  // 5.5 处理返回类型注解
+  // 5.5 Process return type annotations
   processed = processed.replace(
     /:\s*(?:void|string|number|boolean|any|never|unknown|React\.\w+)\s*=>/g,
     " =>",
@@ -370,104 +370,104 @@ function preprocessCodeForBrowser(code: string): string {
   processed = processed.replace(/:\s*Promise<[^>]*>\s*=>/g, " =>");
   processed = processed.replace(/:\s*JSX\.Element\s*=>/g, " =>");
 
-  // 5.6 移除函数参数的类型注解（通用模式）
-  // 匹配：param: Type 在括号内
-  // 注意: 不能匹配对象字面量中的属性 (如 style={{ fontWeight: 500 }})
-  // 策略: 只在函数参数列表的上下文中移除类型注解
+  // 5.6 Remove type annotations in function parameters (generic pattern)
+  // Match: param: Type in parentheses
+  // Note: Do not match object literals' properties (e.g., style={{ fontWeight: 500 }})
+  // Strategy: Only remove type annotations in function parameter context
   
-  // 先处理函数参数中的类型注解 (更精确的模式)
-  // 匹配: (param1: Type, param2: Type) => 或 function name(param: Type)
+  // First process function parameters' type annotations (more precise pattern)
+  // Match: (param1: Type, param2: Type) => or function name(param: Type)
   processed = processed.replace(
     /(\([^)]*)\b(\w+)\s*:\s*(?:\w+(?:<[^>]*>)?|\{[^}]*\})([^)]*\))/g,
     '$1$2$3'
   );
   
-  // 处理箭头函数的单个参数: (param: Type) =>
+  // Process arrow function single parameter: (param: Type) =>
   processed = processed.replace(
     /\((\w+)\s*:\s*(?:\w+(?:<[^>]*>)?|\{[^}]*\})\)\s*=>/g,
     '($1) =>'
   );
 
-  // ⚠️ 新增: 移除 React.useRef、useState 等 Hook 的泛型类型注解
-  // 错误示例: React.useRef<Map<string, HTMLButtonElement | null>>(new Map())
-  // 正确示例: React.useRef(new Map())
+  // ⚠️ New: Remove React.useRef, useState etc. Hook generic type annotations
+  // Error example: React.useRef<Map<string, HTMLButtonElement | null>>(new Map())
+  // Correct example: React.useRef(new Map())
   processed = processed.replace(
     /(React\.(?:useRef|useState|useCallback|useMemo|useReducer|useContext))\s*<[^>]*>/g,
     '$1'
   );
 
-  // ⚠️ 新增: 移除普通泛型函数的类型参数（如 customHook<Type>()）
-  // 匹配: function<Type>( 或 const func = <Type>(
+  // ⚠️ New: Remove generic function type parameters (e.g., customHook<Type>())
+  // Match: function<Type>( or const func = <Type>(
   processed = processed.replace(
     /(function\s+\w+\s*|const\s+\w+\s*=\s*)<[^>]+>\s*\(/g,
     '$1('
   );
 
-  // 6. 移除 interface 和 type 定义
+  // 6. Remove interface and type definitions
   processed = processed.replace(/interface\s+\w+\s*\{[\s\S]*?\}\s*/g, "");
   processed = processed.replace(/type\s+\w+\s*=[\s\S]*?;?\s*/g, "");
 
-  // 7. 移除 as 类型断言
+  // 7. Remove as type assertions
   processed = processed.replace(/\s+as\s+\w+/g, "");
   processed = processed.replace(/\s+as\s+\{[^}]*\}/g, "");
   processed = processed.replace(/\s+as\s+\w+<[^>]*>/g, "");
 
-  // 8. 移除非空断言 !
+  // 8. Remove non-null assertion !
   processed = processed.replace(/!\./g, ".");
   processed = processed.replace(/!\[/g, "[");
 
-  // 9. 移除可选链 ?. （保留，因为这是 JavaScript 特性）
-  // 不需要处理
+  // 9. Remove optional chaining ?. (keep, as this is a JavaScript feature)
+  // No need to handle
 
-  // 10. 清理多余的空行
+  // 10. Clean up extra blank lines
   processed = processed.replace(/\n{3,}/g, "\n\n");
 
   return processed;
 }
 
-// 简单的语法检查函数
+// Simple syntax check function
 function validateCode(code: string): { valid: boolean; error?: string } {
   if (!code || code.trim().length === 0) {
     return { valid: true };
   }
 
   try {
-    // 清理代码
+    // Clean code
     let cleanCode = code.trim();
     
-    // 检查并移除代码块标记
+    // Check and remove code block markers
     if (cleanCode.startsWith('```')) {
       cleanCode = cleanCode.replace(/^```(?:tsx|typescript|javascript|jsx|vue|html|css|scss|less)?\s*\n?/i, '');
       cleanCode = cleanCode.replace(/\n?```$/, '');
       cleanCode = cleanCode.trim();
     }
 
-    // ⚠️ 优先检测代码截断特征（在括号匹配之前）
+    // ⚠️ Prioritize detecting code truncation features (before parenthesis matching)
     const lines = cleanCode.split('\n');
     const lastLine = lines[lines.length - 1].trim();
     
-    // 截断的特征模式
+    // Truncation feature patterns
     const truncationPatterns = [
-      { pattern: /,\s*$/, desc: '逗号' },
-      { pattern: /\.\.\.\s*$/, desc: '省略号' },
-      { pattern: /\.\s*$/, desc: '点号' },
-      { pattern: /=>\s*$/, desc: '箭头函数' },
-      { pattern: /=\s*$/, desc: '赋值符号' },
-      { pattern: /\(\s*$/, desc: '开括号' },
-      { pattern: /\{\s*$/, desc: '开大括号' },
-      { pattern: /['"`][^'"`]*$/, desc: '未闭合的字符串' },
+      { pattern: /,\s*$/, desc: 'comma' },
+      { pattern: /\.\.\.\s*$/, desc: 'ellipsis' },
+      { pattern: /\.\s*$/, desc: 'dot' },
+      { pattern: /=>\s*$/, desc: 'arrow function' },
+      { pattern: /=\s*$/, desc: 'assignment symbol' },
+      { pattern: /\(\s*$/, desc: 'opening parenthesis' },
+      { pattern: /\{\s*$/, desc: 'opening brace' },
+      { pattern: /['"`][^'"`]*$/, desc: 'unclosed string' },
     ];
     
     for (const { pattern, desc } of truncationPatterns) {
       if (pattern.test(lastLine)) {
         return { 
           valid: false, 
-          error: `⚠️ 代码结构不完整/被截断\n\n最后一行以${desc}结尾，可能是 AI 生成时被截断了。\n\n建议：点击"重新生成"按钮让 AI 重新生成完整代码。` 
+          error: `⚠️ Code structure incomplete/truncated\n\nLast line ends with ${desc}, possibly AI-generated code was truncated.\n\nSuggestion: Click "Regenerate" button to let AI regenerate the complete code.` 
         };
       }
     }
 
-    // 检查基本语法
+    // Check basic syntax
     const isReactCode =
       cleanCode.includes("React") ||
       cleanCode.includes("jsx") ||
@@ -475,41 +475,41 @@ function validateCode(code: string): { valid: boolean; error?: string } {
       cleanCode.includes("import React");
 
     if (isReactCode) {
-      // 检查括号匹配
+      // Check parenthesis matching
       const parentheses = cleanCode.match(/[()]/g) || [];
       let balance = 0;
       for (const char of parentheses) {
         if (char === "(") balance++;
         else if (char === ")") balance--;
         if (balance < 0) {
-          return { valid: false, error: "括号不匹配，请检查代码" };
+          return { valid: false, error: "Parentheses mismatch, please check code" };
         }
       }
       if (balance !== 0) {
-        return { valid: false, error: `括号不匹配（差 ${Math.abs(balance)} 个括号），请检查代码` };
+        return { valid: false, error: `Parentheses mismatch (missing ${Math.abs(balance)} parentheses), please check code` };
       }
 
-      // 检查大括号匹配
+      // Check brace matching
       const braces = cleanCode.match(/[{}]/g) || [];
       balance = 0;
       for (const char of braces) {
         if (char === "{") balance++;
         else if (char === "}") balance--;
         if (balance < 0) {
-          return { valid: false, error: "大括号不匹配，请检查代码" };
+          return { valid: false, error: "Braces mismatch, please check code" };
         }
       }
       if (balance !== 0) {
-        return { valid: false, error: `大括号不匹配（差 ${Math.abs(balance)} 个大括号），请检查代码` };
+        return { valid: false, error: `Braces mismatch (missing ${Math.abs(balance)} braces), please check code` };
       }
 
-      // 检查尖括号匹配（JSX）- 简化检查，避免误报
+      // Check angle bracket matching (JSX) - simplified check to avoid false positives
       const openTags = (cleanCode.match(/<[A-Z][a-zA-Z]*(?![^>]*\/>)(?![^>]*\/)\s*>/g) || []).length;
       const closeTags = (cleanCode.match(/<\/[A-Z][a-zA-Z]*>/g) || []).length;
       
-      // 只在不匹配时才警告
+      // Only warn if mismatched and difference is more than 2
       if (openTags !== closeTags && Math.abs(openTags - closeTags) > 2) {
-        console.warn(`可能存在未闭合的 JSX 标签（开标签: ${openTags}, 闭标签: ${closeTags}）`);
+        console.warn(`Possible unclosed JSX tags (open tags: ${openTags}, close tags: ${closeTags})`);
       }
     }
 
@@ -517,7 +517,7 @@ function validateCode(code: string): { valid: boolean; error?: string } {
   } catch (error) {
     return {
       valid: false,
-      error: `代码语法检查失败: ${error instanceof Error ? error.message : "未知错误"}`,
+      error: `Code syntax check failed: ${error instanceof Error ? error.message : "Unknown error"}`,
     };
   }
 }
@@ -534,13 +534,13 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
   const { setPreviewResolution } = useStore();
   const { t, language } = useTranslation();
   const [error, setError] = useState<string | null>(null);
-  // 新增：代码粘贴测试功能
+  // New: Code paste test functionality
   const [testCode, setTestCode] = useState<string>("");
   const [showTestArea, setShowTestArea] = useState<boolean>(false);
   
-  // 设备切换状态
+  // Device Switch state
   const [deviceType, setDeviceType] = useState<DeviceType>(() => {
-    // 根据当前分辨率初始化设备类型
+    // Initialize device type based on current resolution
     if (resolution === 'full' || resolution.includes('macbook') || resolution.includes('surface')) {
       return 'desktop';
     }
@@ -553,13 +553,13 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
   const devicePresets = getDevicePresets(t);
   const preset = resolutionPresets[resolution];
 
-  // 验证代码
+  // Validate code
   const validation = useMemo(() => {
     if (!code) return { valid: true };
     return validateCode(code);
   }, [code]);
 
-  // 处理iframe srcDoc
+  // Process iframe srcDoc
   const iframeHtml = useMemo(() => {
     if (!code) {
       // Get current language from URL
@@ -583,31 +583,31 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
       `.trim();
     }
 
-    // 如果代码验证失败，不生成预览
+    // If code validation fails, do not generate preview
     if (!validation.valid) {
       return null;
     }
 
-    // 检测框架，生成适合的HTML包装
+    // Detect framework, generate suitable HTML wrapper
     const isReactCode =
       code.includes("React") || code.includes("jsx") || code.includes("tsx");
     const isHtmlCode = code.includes("<!DOCTYPE") || code.includes("<html");
 
     if (isHtmlCode) {
-      // 已经是完整HTML
+      // Already complete HTML
       return code;
     }
 
-    // 默认打包成可以直接运行的HTML（对于React/Vue，只支持使用CDN的简单组件）
-    // 如果是React组件，我们提供一个简单的渲染环境
+    // Default package into directly runnable HTML (for React/Vue, only supports simple components using CDN)
+    // If it's a React component, we provide a simple rendering environment
     if (isReactCode) {
-      // 预处理代码：移除 export 语句，使其能在浏览器中直接运行
+      // Preprocess code: Remove export statements to make it runnable in the browser
       const processedCode = preprocessCodeForBrowser(code);
 
-      // 调试：在控制台输出预处理后的代码
-      console.log("=== 原始代码 ===");
+      // Debug: Output preprocessed code to console
+      console.log("=== Original code ===");
       console.log(code);
-      console.log("=== 预处理后的代码 ===");
+      console.log("=== Preprocessed code ===");
       console.log(processedCode);
 
       return `
@@ -634,7 +634,7 @@ root.render(<${extractComponentName(code)} />);
       `.trim();
     }
 
-    // 默认返回，把代码放在body里
+    // Default return, put code in body
     return `
 <!DOCTYPE html>
 <html>
@@ -657,79 +657,79 @@ ${code}
     `.trim();
   }, [code, validation]);
 
-  // 计算容器样式 - 确保内容完整展示
-  // 如果用户没有设置尺寸规格，使用自适应模式
+  // Calculate container style - Ensure content is fully displayed
+  // If user does not set size specification, use adaptive mode
   const isAdaptive = preset.width === "100%";
 
   const containerStyle: React.CSSProperties = {
     width: isAdaptive ? "100%" : `${preset.width}px`,
-    // 自适应模式下使用最小高度，让内容自然撑开
+    // Adaptive mode uses minimum height to let content naturally expand
     height: "auto",
     minHeight: isAdaptive
-      ? "400px"  // 自适应模式下的最小高度
+      ? "400px"  // Minimum height in adaptive mode
       : preset.height === "100%"
         ? "100%"
         : `${preset.height}px`,
-    maxHeight: isAdaptive ? "none" : "calc(100vh - 200px)", // 固定尺寸时限制最大高度
+    maxHeight: isAdaptive ? "none" : "calc(100vh - 200px)", // Limit maximum height for fixed size
     margin: "0 auto",
     background: "white",
-    overflow: "visible", // 允许内容完全展示
+    overflow: "visible", // Allow content to fully display
   };
 
-  // iframe 错误处理
+  // iframe error handling
   const handleIframeError = useCallback(() => {
-    setError("无法加载预览，可能存在语法错误");
+    setError("Unable to load preview, possible syntax error");
   }, []);
 
-  // iframe 加载成功
+  // iframe load success
   const handleIframeLoad = useCallback((e: React.SyntheticEvent<HTMLIFrameElement>) => {
     setError(null);
     
-    // 在自适应模式下，自动调整 iframe 高度以适应内容
+    // In adaptive mode, automatically adjust iframe height to fit content
     if (isAdaptive) {
       try {
         const iframe = e.currentTarget;
-        // 等待内容完全加载后调整高度
+        // Wait for content to fully load before adjusting height
         setTimeout(() => {
           try {
             const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
             if (iframeDoc && iframeDoc.body) {
               const contentHeight = iframeDoc.body.scrollHeight;
-              // 设置 iframe 高度为内容高度（加上一些padding）
+              // Set iframe height to content height (plus some padding)
               iframe.style.height = `${contentHeight + 20}px`;
             }
           } catch (err) {
-            // 跨域限制可能导致无法访问 contentDocument，忽略错误
-            console.debug('无法调整 iframe 高度:', err);
+            // Cross-origin restrictions may prevent accessing contentDocument, ignore error
+            console.debug('Unable to adjust iframe height:', err);
           }
         }, 100);
       } catch (err) {
-        console.debug('iframe 加载处理失败:', err);
+        console.debug('iframe load handling failed:', err);
       }
     }
   }, [isAdaptive]);
 
-  // 处理测试代码的渲染
+  // Handle rendering of test code
   const handleTestCodeRender = () => {
     if (!testCode.trim()) {
-      setError("请输入要测试的代码");
+      setError("Enter code to test");
       return;
     }
     
-    console.log('🧪 开始测试代码渲染...');
-    console.log('=== 测试代码 ===');
+    console.log('🧪 Starting code rendering test...');
+    console.log('=== Test code ===');
     console.log(testCode);
     
-    // 提取组件名
+    // Extract component name
     const componentName = extractComponentName(testCode);
-    console.log(`📦 提取的组件名: ${componentName}`);
+    console.log(`📦 Extracted component name: ${componentName}`);
     
-    // 预处理代码
+    // Preprocess code
     const processedCode = preprocessCodeForBrowser(testCode);
-    console.log('=== 预处理后的代码 ===');
+    console.log('=== Preprocessed code ===');
     console.log(processedCode);
     
-    // 生成HTML
+    // Generate HTML
     const html = `
 <!DOCTYPE html>
 <html>
@@ -753,7 +753,7 @@ root.render(<${componentName} />);
 </html>
     `.trim();
     
-    // 创建一个新的iframe来显示测试结果
+    // Create a new iframe to display test result
     const iframe = document.createElement('iframe');
     iframe.style.width = '100%';
     iframe.style.height = '600px';
@@ -761,19 +761,19 @@ root.render(<${componentName} />);
     iframe.style.marginTop = '20px';
     iframe.srcdoc = html;
     
-    // 清除旧的测试结果
+    // Clear old test result
     const oldTestResult = document.getElementById('test-result-container');
     if (oldTestResult) {
       oldTestResult.remove();
     }
     
-    // 添加新的测试结果容器
+    // Add new test result container
     const container = document.createElement('div');
     container.id = 'test-result-container';
-    container.innerHTML = '<h3 style="margin: 10px 0; color: #374151;">🧪 测试结果:</h3>';
+    container.innerHTML = '<h3 style="margin: 10px 0; color: #374151;">🧪 Test result:</h3>';
     container.appendChild(iframe);
     
-    // 插入到测试区域下方
+    // Insert below test area
     const testArea = document.getElementById('test-code-area');
     if (testArea) {
       testArea.parentNode?.insertBefore(container, testArea.nextSibling);
@@ -782,7 +782,7 @@ root.render(<${componentName} />);
     setError(null);
   };
 
-  // 清空测试代码
+  // Clear test code
   const handleClearTest = () => {
     setTestCode("");
     setError(null);
@@ -794,10 +794,10 @@ root.render(<${componentName} />);
 
   return (
     <div className="w-full h-full flex flex-col bg-gray-50 dark:bg-slate-900">
-      {/* 顶部工具栏 */}
+      {/* Top toolbar */}
       <div className="px-4 py-3 border-b border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
         <div className="flex items-center justify-between mb-3">
-          {/* 左侧：设备类型切换 */}
+          {/* Left: Device type switch */}
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-600 dark:text-gray-400">
               {t.preview.device}
@@ -813,7 +813,7 @@ root.render(<${componentName} />);
                     key={type}
                     onClick={() => {
                       setDeviceType(type);
-                      // 切换到该设备的第一个分辨率
+                      // Switch to the first resolution of this device
                       if (config.resolutions.length > 0) {
                         setPreviewResolution(config.resolutions[0]);
                       }
@@ -834,7 +834,7 @@ root.render(<${componentName} />);
             </div>
           </div>
           
-          {/* 右侧：具体设备尺寸选择 */}
+          {/* Right: Specific Device Size selection */}
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-600 dark:text-gray-400">
               {t.preview.size}
@@ -846,7 +846,7 @@ root.render(<${componentName} />);
               }
             >
               <Select.Trigger className="inline-flex items-center justify-between px-3 py-1.5 text-sm rounded-md border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-50 min-w-[180px] transition-colors duration-150">
-                <Select.Value placeholder={language === 'en' ? 'Select device size' : '选择设备尺寸'} />
+                <Select.Value placeholder={language === 'en' ? 'Select device size' : '选择Device Size'} />
                 <Select.Icon className="ml-2">
                   <ChevronDown size={14} />
                 </Select.Icon>
@@ -859,7 +859,7 @@ root.render(<${componentName} />);
                   sideOffset={5}
                 >
                   <Select.Viewport className="p-1">
-                    {/* 只显示当前设备类型的分辨率 */}
+                    {/* Only show resolutions of current device type */}
                     {devicePresets[deviceType].resolutions.map((resKey) => {
                       const item = resolutionPresets[resKey];
                       const localizedLabel = getResolutionLabel(resKey, t);
@@ -882,7 +882,7 @@ root.render(<${componentName} />);
             </Select.Root>
           </div>
           
-          {/* 代码测试按钮 - 独立放置在右侧 */}
+          {/* Code Test button - placed separately on the right */}
           <button
             onClick={() => setShowTestArea(!showTestArea)}
             className="px-3 py-1.5 text-sm rounded-md border border-purple-300 dark:border-purple-600 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors duration-150 flex items-center gap-1"
@@ -893,7 +893,7 @@ root.render(<${componentName} />);
           </button>
         </div>
         
-        {/* 代码粘贴测试区域 */}
+        {/* Code paste test area */}
         {showTestArea && (
           <div id="test-code-area" className="mt-3 p-3 bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-900/10 dark:to-blue-900/10 rounded-lg border border-purple-200 dark:border-purple-700">
             <div className="mb-2 flex items-center justify-between">
@@ -932,9 +932,9 @@ root.render(<${componentName} />);
         )}
       </div>
 
-      {/* 预览 iframe 容器 */}
+      {/* Preview iframe container */}
       <div className="flex-1 flex items-start justify-center bg-gray-100 dark:bg-slate-900/50 p-6 overflow-y-auto overflow-x-hidden">
-        {/* 代码验证失败提示 */}
+        {/* Code validation failure prompt */}
         {!validation.valid ? (
           <div className="max-w-2xl w-full">
             <div className="bg-white dark:bg-slate-800 rounded-lg border border-red-200 dark:border-red-800 shadow-sm p-6">

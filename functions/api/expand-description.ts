@@ -1,19 +1,19 @@
 /**
- * API: 扩写组件描述
+ * API: Expand Component Description
  * POST /api/expand-description
  * 
- * 请求体:
+ * Request body:
  * {
- *   description: string,      // 简短的组件描述
- *   componentName?: string,   // 可选的组件名称
- *   language?: string         // 语言: 'en' | 'zh'
+ *   description: string,      // Brief component description
+ *   componentName?: string,   // Optional component name
+ *   language?: string         // Language: 'en' | 'zh'
  * }
  * 
- * 响应:
+ * Response:
  * {
  *   success: boolean,
  *   data: {
- *     expandedDescription: string  // 扩写后的详细描述
+ *     expandedDescription: string  // Expanded detailed description
  *   }
  * }
  */
@@ -36,15 +36,15 @@ export async function onRequest(context: any) {
 
     if (!description) {
       return new Response(
-        JSON.stringify({ success: false, error: '缺少描述内容' }),
+        JSON.stringify({ success: false, error: 'Missing description content' }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
-    // 构建扩写提示词（根据语言选择）
+    // Build expansion prompt (based on language)
     const prompt = buildExpandPrompt(description, componentName, language);
 
-    // 调用 AI 生成扩写文本
+    // Call AI to generate expanded text
     const expandedDescription = await callAI(prompt, env);
 
     return new Response(

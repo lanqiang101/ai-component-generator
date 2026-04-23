@@ -20,7 +20,7 @@ export const LeftFormPanel: React.FC = () => {
   const availableUILibraries = getUILibrariesForFramework(params.framework);
   const availableVersions = getVersionsForUILibrary(params.uiLibrary);
 
-  // 当UI库改变时，重置版本
+  // Reset version when UI Library changes
   const handleUILibraryChange = (value: string) => {
     const versions = getVersionsForUILibrary(value);
     updateField('uiLibrary', value);
@@ -29,7 +29,7 @@ export const LeftFormPanel: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* 组件名称 */}
+      {/* Component Name */}
       <div className="group">
         <div className="bg-white dark:bg-slate-800 rounded-lg p-4 space-y-3 border border-gray-200 dark:border-slate-700">
           <Label htmlFor="componentName" className="text-sm font-medium text-gray-700 dark:text-gray-200 flex items-center gap-2">
@@ -45,7 +45,7 @@ export const LeftFormPanel: React.FC = () => {
         </div>
       </div>
 
-      {/* 组件描述 */}
+      {/* Component Description */}
       <div className="group">
         <div className="bg-white dark:bg-slate-800 rounded-lg p-4 space-y-3 border border-gray-200 dark:border-slate-700">
           <div className="flex items-center justify-between">
@@ -109,7 +109,7 @@ export const LeftFormPanel: React.FC = () => {
         </div>
       </div>
 
-      {/* 组件类型 */}
+      {/* Component Type */}
       <div className="group">
         <div className="bg-white dark:bg-slate-800 rounded-lg p-4 space-y-3 border border-gray-200 dark:border-slate-700">
           <Label htmlFor="componentType" className="text-sm font-medium text-gray-700 dark:text-gray-200">
@@ -298,7 +298,7 @@ export const LeftFormPanel: React.FC = () => {
         </div>
       </div>
 
-      {/* 额外需求 */}
+      {/* Additional Requirements */}
       <div className="group">
         <div className="bg-white dark:bg-slate-800 rounded-lg p-4 space-y-3 border border-gray-200 dark:border-slate-700">
           <Label htmlFor="extraRequirements" className="text-sm font-medium text-gray-700 dark:text-gray-200">

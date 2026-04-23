@@ -19,12 +19,12 @@ interface FileTreeViewerProps {
   onFileSelect: (filePath: string) => void;
 }
 
-// 将扁平文件列表转换为树形结构
+// Convert flat File list to tree structure
 function buildFileTree(files: FileTreeViewerProps['files']): FileNode[] {
   const root: FileNode[] = [];
   const map = new Map<string, FileNode>();
 
-  // 首先创建所有文件夹节点
+  // First create all Folder nodes
   files.forEach(file => {
     const parts = file.path.split('/');
     let currentPath = '';
@@ -42,7 +42,7 @@ function buildFileTree(files: FileTreeViewerProps['files']): FileNode[] {
         };
         map.set(currentPath, node);
         
-        // 添加到父节点
+        // Add to parent node
         if (index === 0) {
           root.push(node);
         } else {
@@ -59,7 +59,7 @@ function buildFileTree(files: FileTreeViewerProps['files']): FileNode[] {
   return root;
 }
 
-// 递归渲染文件树节点
+// Recursively render File Tree nodes
 function TreeNode({ 
   node, 
   depth = 0, 
@@ -71,7 +71,7 @@ function TreeNode({
   activeFilePath: string;
   onFileSelect: (filePath: string) => void;
 }) {
-  const [isExpanded, setIsExpanded] = useState(depth < 2); // 默认展开前两级
+  const [isExpanded, setIsExpanded] = useState(depth < 2); // Expand first two levels by default
   const isActive = node.path === activeFilePath;
   const hasChildren = node.children && node.children.length > 0;
 
@@ -156,7 +156,7 @@ export function FileTreeViewer({ files, activeFilePath, onFileSelect }: FileTree
     <div className="w-48 border-r border-gray-200 bg-white overflow-y-auto">
       <div className="p-2 border-b border-gray-200">
         <div className="text-xs font-medium text-gray-500 uppercase tracking-wide px-3">
-          文件结构
+          File结构
         </div>
       </div>
       <div className="py-1">

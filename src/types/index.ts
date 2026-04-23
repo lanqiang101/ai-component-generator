@@ -70,17 +70,17 @@ export interface GeneratedComponent {
   updatedAt: number;
 }
 
-// 需求整理结果
+// Requirements refinement result
 export interface RefinedRequirements {
-  // 整理后的需求描述（更专业、结构化）
+  // Refined requirement description (more professional, structured)
   refinedDescription: string;
-  // 组件结构说明
+  // Component structure description
   componentStructure: string;
-  // 功能点列表（JSON 数组字符串）
+  // Feature list (JSON array string)
   features: string;
-  // 原型图（ASCII 格式）
+  // Prototype diagram (ASCII format)
   prototypeDiagram: string;
-  // 技术要点（JSON 数组字符串）
+  // Technical notes (JSON array string)
   technicalNotes: string;
 }
 

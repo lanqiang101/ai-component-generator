@@ -6,29 +6,29 @@ import { useStore } from '../store/useStore';
 import type { ComponentGenerationParams } from '../types';
 import { useTranslation } from '../i18n';
 
-// 初始化 Mermaid
+// Initialize Mermaid
 mermaid.initialize({
   startOnLoad: false,
   theme: 'default',
   securityLevel: 'loose',
 });
 
-// 安全解析 JSON 数组的辅助函数
+// Helper function to safely parse JSON array
 const safeParseJSONArray = (value: string | unknown): string[] => {
   if (!value) return [];
   
-  // 如果已经是数组，直接返回
+  // If already an array, return directly
   if (Array.isArray(value)) return value;
   
-  // 尝试解析 JSON
+  // Try to parse JSON
   try {
     const parsed = JSON.parse(value as string);
     if (Array.isArray(parsed)) return parsed;
   } catch (e) {
-    console.warn('JSON 解析失败，降级为普通文本:', value);
+    console.warn('JSON parse failed, fallback to plain text:', value);
   }
   
-  // 降级处理：如果是字符串，按换行或逗号分割
+  // Fallback: if string, split by newline or comma
   if (typeof value === 'string') {
     return value.split(/[\n,，]/).map(item => item.trim()).filter(Boolean);
   }
@@ -36,7 +36,7 @@ const safeParseJSONArray = (value: string | unknown): string[] => {
   return [];
 };
 
-// 常见组件模板库
+// Common component template library
 const COMPONENT_TEMPLATES: Array<{
   id: string;
   name: string;
@@ -46,12 +46,12 @@ const COMPONENT_TEMPLATES: Array<{
 }> = [
   {
     id: 'product-card',
-    name: '商品卡片',
+    name: 'Product Card',
     icon: '🛍️',
-    description: '电商商品展示卡片，包含图片、价格、标题等',
+    description: 'E-commerce product display card with image, price, title, etc.',
     template: {
       componentName: 'ProductCard',
-      description: '一个电商商品展示卡片组件，用于在商品列表页面中展示单个商品的核心信息。组件应包含商品主图、标题、价格、促销标签等元素，支持悬停效果和点击跳转。采用简约现代风格，自适应容器宽度。',
+      description: 'An e-commerce product display card component for showcasing core product information in product list pages. The component should include product main image, title, price, promotional tags and other elements, supporting hover effects and click navigation. Adopts minimalist modern style, adaptive container width.',
       componentType: 'card',
       style: 'minimal',
       needMockData: true,
@@ -60,12 +60,12 @@ const COMPONENT_TEMPLATES: Array<{
   },
   {
     id: 'navbar',
-    name: '导航栏',
+    name: 'Navigation Bar',
     icon: '🧭',
-    description: '顶部导航栏，包含 Logo、菜单、搜索框',
+    description: 'Top navigation bar with Logo, menu, search box',
     template: {
       componentName: 'NavigationBar',
-      description: '响应式顶部导航栏组件，包含品牌 Logo、主导航菜单、搜索框和用户操作区域。支持移动端折叠菜单，具有平滑过渡动画和滚动时的背景变化效果。',
+      description: 'Responsive top navigation bar component including brand Logo, main navigation menu, search box and user action area. Supports mobile collapsible menu with smooth transition animations and background changes on scroll.',
       componentType: 'navbar',
       style: 'minimal',
       needMockData: true,
@@ -74,12 +74,12 @@ const COMPONENT_TEMPLATES: Array<{
   },
   {
     id: 'data-table',
-    name: '数据表格',
+    name: 'Data Table',
     icon: '📊',
-    description: '可排序、分页的数据表格组件',
+    description: 'Sortable, paginated data table component',
     template: {
       componentName: 'DataTable',
-      description: '功能完整的数据表格组件，支持列排序、分页、行选择、批量操作等功能。表头固定，内容区域可滚动。提供搜索过滤和导出功能。采用现代化的设计风格，支持深色模式。',
+      description: 'Full-featured data table component supporting column sorting, pagination, row selection, batch operations and more. Fixed header with scrollable content area. Provides search filtering and export functionality. Modern design style with dark mode support.',
       componentType: 'table',
       style: 'material',
       needMockData: true,
@@ -88,12 +88,12 @@ const COMPONENT_TEMPLATES: Array<{
   },
   {
     id: 'login-form',
-    name: '登录表单',
+    name: 'Login Form',
     icon: '🔐',
-    description: '用户登录表单，包含邮箱、密码输入和验证',
+    description: 'User login form with email, password input and validation',
     template: {
       componentName: 'LoginForm',
-      description: '用户登录表单组件，包含邮箱/手机号输入框、密码输入框（带显示/隐藏切换）、记住我选项和忘记密码链接。具有实时表单验证、错误提示和加载状态。支持键盘导航和无障碍访问。',
+      description: 'User login form component including email/phone input, password input (with show/hide toggle), remember me option and forgot password link. Features real-time form validation, error messages and loading states. Supports keyboard navigation and accessibility.',
       componentType: 'form',
       style: 'minimal',
       needMockData: false,
@@ -102,12 +102,12 @@ const COMPONENT_TEMPLATES: Array<{
   },
   {
     id: 'image-gallery',
-    name: '图片画廊',
+    name: 'Image Gallery',
     icon: '🖼️',
-    description: '图片展示画廊，支持缩略图和灯箱效果',
+    description: 'Image display gallery with thumbnail and lightbox effect',
     template: {
       componentName: 'ImageGallery',
-      description: '响应式图片画廊组件，以网格布局展示多张图片。支持懒加载、点击图片放大查看（灯箱效果）、左右滑动切换、缩略图导航。具有优雅的加载动画和过渡效果。',
+      description: 'Responsive image gallery component displaying multiple images in grid layout. Supports lazy loading, click to enlarge (lightbox effect), left/right swipe to switch, and thumbnail navigation. Features elegant loading animations and transition effects.',
       componentType: 'other',
       style: 'glassmorphism',
       needMockData: true,
@@ -116,12 +116,12 @@ const COMPONENT_TEMPLATES: Array<{
   },
   {
     id: 'timeline',
-    name: '时间轴',
+    name: 'Timeline',
     icon: '⏱️',
-    description: '垂直时间轴，展示事件发展历程',
+    description: 'Vertical timeline to display event development',
     template: {
       componentName: 'Timeline',
-      description: '垂直时间轴组件，用于展示项目进展、历史记录或事件流程。每个时间节点包含日期、标题、描述和可选的图标。支持交替布局和单侧布局，具有滚动进入动画效果。',
+      description: 'Vertical timeline component for displaying project progress, historical records, or event flows. Each timeline node includes date, title, description, and optional icon. Supports alternating layout and single-sided layout with scroll-in animation effects.',
       componentType: 'other',
       style: 'minimal',
       needMockData: true,
@@ -130,26 +130,26 @@ const COMPONENT_TEMPLATES: Array<{
   },
 ];
 
-// Mermaid 图表渲染组件
+// Mermaid diagram rendering component
 const MermaidDiagram: React.FC<{ chart: string; title?: string }> = ({ chart, title }) => {
   const [svg, setSvg] = useState<string>('');
   const [error, setError] = useState<string>('');
   const [isNotMermaid, setIsNotMermaid] = useState(false);
 
-  // 清理和转义 Mermaid 节点文本中的特殊字符
+  // Sanitize and escape special characters in Mermaid node text
   const sanitizeMermaidSyntax = (mermaidCode: string): string => {
     let sanitized = mermaidCode;
     
-    // 检测是否为 block-beta 语法
+    // Detect if it's block-beta syntax
     const isBlockBeta = /^\s*block-beta/i.test(sanitized.trim());
     
     if (isBlockBeta) {
-      // block-beta 语法的特殊处理
-      // 匹配模式: NodeId["Label"] 或 NodeId[Label]
+      // Special handling for block-beta syntax
+      // Match pattern: NodeId["Label"] or NodeId[Label]
       sanitized = sanitized.replace(
         /(\w+)\[(.*?)\]/g,
         (_match, nodeId, label) => {
-          // 统一用双引号包裹,并转义内部的双引号和括号
+          // Uniformly use double quotes and escape internal quotes and brackets
           const escapedLabel = label
             .replace(/"/g, '&quot;')
             .replace(/\(/g, '&#40;')
@@ -160,12 +160,12 @@ const MermaidDiagram: React.FC<{ chart: string; title?: string }> = ({ chart, ti
         }
       );
       
-      // 处理无引号的简单形式: NodeId Label (block-beta 特有语法)
-      // 这种格式在 block-beta 中表示节点,需要转换为带引号的形式
+      // Handle simple form without quotes: NodeId Label (block-beta specific syntax)
+      // This format in block-beta represents a node and needs to be converted to quoted form
       sanitized = sanitized.replace(
         /^(\s*)(\w+)\s+([^[\]\n"]+)$/gm,
         (match, indent, nodeId, label) => {
-          // 排除关键字如 columns, space, block, end 等
+          // Exclude keywords like columns, space, block, end, etc.
           const keywords = ['columns', 'space', 'block', 'end', 'stack'];
           if (!keywords.includes(nodeId.toLowerCase())) {
             const escapedLabel = label.trim()
@@ -178,8 +178,8 @@ const MermaidDiagram: React.FC<{ chart: string; title?: string }> = ({ chart, ti
         }
       );
     } else {
-      // graph/flowchart 语法的处理
-      // 处理方括号形式的节点: NodeId[Label with special chars]
+      // Handling for graph/flowchart syntax
+      // Handle bracketed node form: NodeId[Label with special chars]
       sanitized = sanitized.replace(
         /(\w+)\[(.*?)\]/g,
         (_match, nodeId, label) => {
@@ -191,7 +191,7 @@ const MermaidDiagram: React.FC<{ chart: string; title?: string }> = ({ chart, ti
         }
       );
       
-      // 处理圆括号形式的节点: NodeId("Label")
+      // Handle quoted node form: NodeId("Label")
       sanitized = sanitized.replace(
         /(\w+)\("(.*?)"\)/g,
         (_match, nodeId, label) => {
@@ -203,7 +203,7 @@ const MermaidDiagram: React.FC<{ chart: string; title?: string }> = ({ chart, ti
         }
       );
       
-      // 处理无引号的简单节点: NodeId[Label]
+      // Handle simple node without quotes: NodeId[Label]
       sanitized = sanitized.replace(
         /(\w+)\[([^\]]+)\]/g,
         (_match, nodeId, label) => {
@@ -226,41 +226,41 @@ const MermaidDiagram: React.FC<{ chart: string; title?: string }> = ({ chart, ti
   useEffect(() => {
     const renderDiagram = async () => {
       try {
-        // 清理 Mermaid 语法（移除代码块标记）
+        // Clean Mermaid syntax (remove code block markers)
         let cleanChart = chart.trim();
         const codeBlockMatch = cleanChart.match(/```(?:mermaid)?\s*([\s\S]*?)```/);
         if (codeBlockMatch) {
           cleanChart = codeBlockMatch[1].trim();
         }
 
-        // 检测是否为 Mermaid 语法
+        // Detect if it's Mermaid syntax
         const isMermaidSyntax = /^(graph|flowchart|sequenceDiagram|classDiagram|stateDiagram|pie|gantt|journey|erDiagram|block-beta)/i.test(cleanChart);
         
         if (!isMermaidSyntax) {
-          // 不是 Mermaid 语法，标记并返回
+          // Not Mermaid syntax, mark and return
           setIsNotMermaid(true);
           return;
         }
 
-        // 清理和转义特殊字符
+        // Sanitize and escape special characters
         const sanitizedChart = sanitizeMermaidSyntax(cleanChart);
 
-        // 生成唯一 ID
+        // Generate unique ID
         const id = `mermaid-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         
-        // 渲染 SVG
+        // Render SVG
         const { svg } = await mermaid.render(id, sanitizedChart);
         setSvg(svg);
         setError('');
         setIsNotMermaid(false);
       } catch (err) {
-        console.error('Mermaid 渲染失败:', err);
-        // 区分不同类型的错误
-        const errorMessage = err instanceof Error ? err.message : '渲染失败';
+        console.error('Mermaid rendering failed:', err);
+        // Differentiate different types of errors
+        const errorMessage = err instanceof Error ? err.message : 'Rendering failed';
         
-        // 如果是语法解析错误，提供更友好的提示
+        // If it's a syntax parsing error, provide a more friendly prompt
         if (errorMessage.includes('Parse error') || errorMessage.includes('Syntax error')) {
-          setError(`语法解析错误：${errorMessage}\n\n原始内容已降级为文本展示`);
+          setError(`Syntax parsing error：${errorMessage}\n\nOriginal content has been downgraded to text display`);
         } else {
           setError(errorMessage);
         }
@@ -275,7 +275,7 @@ const MermaidDiagram: React.FC<{ chart: string; title?: string }> = ({ chart, ti
     }
   }, [chart]);
 
-  // 如果不是 Mermaid 语法，返回 null，由父组件处理
+  // If not Mermaid syntax, return null, handled by parent component
   if (isNotMermaid) {
     return null;
   }
@@ -283,7 +283,7 @@ const MermaidDiagram: React.FC<{ chart: string; title?: string }> = ({ chart, ti
   if (error) {
     return (
       <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-        <p className="text-sm text-red-600 mb-2">⚠️ 图表渲染失败</p>
+        <p className="text-sm text-red-600 mb-2">⚠️ Chart rendering failed</p>
         <pre className="text-xs text-gray-600 whitespace-pre-wrap bg-white p-2 rounded">
           {chart}
         </pre>
@@ -310,7 +310,7 @@ const MermaidDiagram: React.FC<{ chart: string; title?: string }> = ({ chart, ti
   );
 };
 
-// 文本树形结构展示组件
+// Text tree structure display component
 const TextTreeDisplay: React.FC<{ tree: string; title?: string }> = ({ tree, title }) => {
   return (
     <div className="space-y-2">
@@ -324,7 +324,7 @@ const TextTreeDisplay: React.FC<{ tree: string; title?: string }> = ({ tree, tit
   );
 };
 
-// 智能图表展示组件（自动判断是 Mermaid 还是文本树）
+// Smart chart display component (automatically determine if it's Mermaid or text tree)
 const SmartDiagramDisplay: React.FC<{ content: string; title?: string }> = ({ content, title }) => {
   const [isMermaid, setIsMermaid] = useState<boolean | null>(null);
 
@@ -332,7 +332,7 @@ const SmartDiagramDisplay: React.FC<{ content: string; title?: string }> = ({ co
     if (!content) return;
     
     const cleanContent = content.trim();
-    // 检测是否为 Mermaid 语法
+    // Detect if it's Mermaid syntax
     const hasMermaidSyntax = /^(graph|flowchart|sequenceDiagram|classDiagram|stateDiagram|pie|gantt|journey|erDiagram|block-beta)/i.test(cleanContent);
     const hasCodeBlock = /```(?:mermaid)?\s*(graph|flowchart|block-beta)/i.test(cleanContent);
     
@@ -341,17 +341,17 @@ const SmartDiagramDisplay: React.FC<{ content: string; title?: string }> = ({ co
 
   if (!content) return null;
 
-  // 如果检测到是 Mermaid 语法，使用 MermaidDiagram
+  // If detected as Mermaid syntax, use MermaidDiagram
   if (isMermaid === true) {
     return <MermaidDiagram chart={content} title={title} />;
   }
   
-  // 如果检测到不是 Mermaid 语法，使用文本树展示
+  // If detected as not Mermaid syntax, use text tree display
   if (isMermaid === false) {
     return <TextTreeDisplay tree={content} title={title} />;
   }
 
-  // 检测中，显示 loading
+  // Detecting, show loading
   return (
     <div className="flex items-center justify-center py-8">
       <Loader2 size={24} className="animate-spin text-blue-600" />
@@ -374,18 +374,18 @@ export const RequirementsRefinementDialog: React.FC = () => {
   const [editedDescription, setEditedDescription] = useState('');
   const [showTemplates, setShowTemplates] = useState(false);
 
-  // 当弹窗打开时，初始化编辑内容
+  // Initialize edit content when dialog opens
   useEffect(() => {
     if (showRefinementDialog && refinedRequirements) {
       setEditedDescription(refinedRequirements.refinedDescription);
     }
   }, [showRefinementDialog, refinedRequirements]);
 
-  // 使用模板填充表单
+  // Use template to fill form
   const handleUseTemplate = (template: typeof COMPONENT_TEMPLATES[0]['template']) => {
     setParams(template);
     setShowTemplates(false);
-    // 关闭当前弹窗，重新触发生成流程
+    // Close current dialog, re-trigger generation process
     cancelRefinement();
     setTimeout(() => {
       generateComponent();
@@ -393,9 +393,9 @@ export const RequirementsRefinementDialog: React.FC = () => {
   };
 
   const handleConfirm = async () => {
-    // 使用编辑后的描述
+    // Use edited description
     if (editedDescription.trim()) {
-      // 更新 refinedRequirements
+      // Update refinedRequirements
       useStore.setState({
         refinedRequirements: refinedRequirements ? {
           ...refinedRequirements,
@@ -438,7 +438,7 @@ export const RequirementsRefinementDialog: React.FC = () => {
             </Dialog.Close>
           </div>
 
-          {/* 模板库弹窗 */}
+          {/* Template library dialog */}
           {showTemplates && (
             <div className="absolute inset-0 bg-white z-10 overflow-y-auto rounded-xl">
               <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
@@ -489,7 +489,7 @@ export const RequirementsRefinementDialog: React.FC = () => {
               </div>
             ) : refinedRequirements ? (
               <>
-                {/* 整理后的需求描述 */}
+                {/* Refined requirement description */}
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold text-gray-700">📝 {t.refinement.refinedDescription}</span>
@@ -503,7 +503,7 @@ export const RequirementsRefinementDialog: React.FC = () => {
                   />
                 </div>
 
-                {/* 组件结构 - 智能展示（支持 Mermaid 和文本树） */}
+                {/* Component Structure - Smart display (supports Mermaid and text tree) */}
                 {refinedRequirements.componentStructure && (
                   <SmartDiagramDisplay 
                     content={refinedRequirements.componentStructure}
@@ -511,7 +511,7 @@ export const RequirementsRefinementDialog: React.FC = () => {
                   />
                 )}
 
-                {/* 功能点列表 */}
+                {/* Feature list */}
                 {refinedRequirements.features && (
                   <div className="space-y-3">
                     <h4 className="text-sm font-semibold text-gray-700">✨ {t.refinement.features}</h4>
@@ -528,7 +528,7 @@ export const RequirementsRefinementDialog: React.FC = () => {
                   </div>
                 )}
 
-                {/* 原型示意图 - 智能展示（支持 Mermaid、ASCII 和文本树） */}
+                {/* Prototype diagram - Smart display (supports Mermaid, ASCII and text tree) */}
                 {refinedRequirements.prototypeDiagram && (
                   <SmartDiagramDisplay 
                     content={refinedRequirements.prototypeDiagram}
@@ -536,7 +536,7 @@ export const RequirementsRefinementDialog: React.FC = () => {
                   />
                 )}
 
-                {/* 技术要点 */}
+                {/* Technical Notes */}
                 {refinedRequirements.technicalNotes && (
                   <div className="space-y-3">
                     <h4 className="text-sm font-semibold text-gray-700">⚙️ {t.refinement.technicalNotes}</h4>

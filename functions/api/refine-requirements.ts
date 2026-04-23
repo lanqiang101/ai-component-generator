@@ -1,8 +1,8 @@
 /**
- * API: 需求分析整理
+ * API: Requirements Refinement
  * POST /api/refine-requirements
  * 
- * 请求体:
+ * Request body:
  * {
  *   params: {
  *     componentName: string,
@@ -10,12 +10,12 @@
  *     framework: string,
  *     componentType: string,
  *     style: string,
- *     // ... 其他参数
+ *     // ... other parameters
  *   },
  *   language?: string  // 'en' | 'zh'
  * }
  * 
- * 响应:
+ * Response:
  * {
  *   success: boolean,
  *   data: {
@@ -23,7 +23,7 @@
  *       refinedDescription: string,
  *       componentStructure: string,
  *       features: string[],
- *       prototypeDiagram: string,  // Mermaid 图
+ *       prototypeDiagram: string,  // Mermaid diagram
  *       technicalNotes: string[]
  *     }
  *   }
@@ -48,18 +48,18 @@ export async function onRequest(context: any) {
 
     if (!params || !params.componentName || !params.description) {
       return new Response(
-        JSON.stringify({ success: false, error: language === 'zh' ? '缺少必要参数' : 'Missing required parameters' }),
+        JSON.stringify({ success: false, error: 'Missing required parameters' }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
-    // 构建需求整理提示词（根据语言选择）
+    // Build refinement prompt (based on language)
     const prompt = buildRefinementPrompt(params, language);
 
-    // 调用 AI 生成结构化需求
+    // Call AI to generate structured requirements
     const result = await callAI(prompt, env);
 
-    // 解析 AI 返回的 JSON
+    // Parse JSON returned by AI
     const refinedRequirements = parseRefinedRequirements(result, language);
 
     return new Response(

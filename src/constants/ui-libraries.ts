@@ -7,7 +7,7 @@ export interface UILibraryOption {
   defaultVersions: string[];
 }
 
-// UI库版本配置
+// UI library version configuration
 const uiLibraryVersions: Record<string, string[]> = {
   none: [],
   antd: ['5.x', '4.x'],
@@ -23,7 +23,7 @@ const uiLibraryVersions: Record<string, string[]> = {
   tailwind: ['v3.x', 'v2.x'],
 };
 
-// 根据框架返回可用的UI库选项
+// Return available UI library options based on framework
 export const getUILibrariesForFramework = (framework: Framework): UILibraryOption[] => {
   // React frameworks
   if (framework.startsWith('react')) {
@@ -56,7 +56,7 @@ export const getUILibrariesForFramework = (framework: Framework): UILibraryOptio
   ];
 };
 
-// 获取指定UI库的版本列表
+// Get version list for specified UI library
 export const getVersionsForUILibrary = (uiLibrary: string): string[] => {
   return uiLibraryVersions[uiLibrary] || [];
 };

@@ -2,30 +2,30 @@ import React, { useMemo } from 'react';
 import { useStore } from '../store/useStore';
 import { Loader2, AlertCircle, CheckCircle2, Package, Code2, Sparkles, Layers } from 'lucide-react';
 
-// 步骤配置
+// Step configuration
 const stepConfig: Record<string, { label: string; icon: any }> = {
   analyzing: {
-    label: '分析需求',
+    label: 'Analyzing Requirements',
     icon: Sparkles,
   },
   scaffolding: {
-    label: '构建框架',
+    label: 'Building Framework',
     icon: Package,
   },
   filling: {
-    label: '生成代码',
+    label: 'Generating Code',
     icon: Code2,
   },
   assembling: {
-    label: '组装组件',
+    label: 'Assembling Components',
     icon: Layers,
   },
   completed: {
-    label: '完成',
+    label: 'Completed',
     icon: CheckCircle2,
   },
   failed: {
-    label: '失败',
+    label: 'Failed',
     icon: AlertCircle,
   },
 };
@@ -33,7 +33,7 @@ const stepConfig: Record<string, { label: string; icon: any }> = {
 export const GenerationProgress: React.FC = () => {
   const { generation, generationTask, generationProgress } = useStore();
 
-  // 计算当前步骤信息
+  // Calculate current step information
   const currentStepInfo = useMemo(() => {
     if (!generationTask) return null;
     
@@ -48,13 +48,13 @@ export const GenerationProgress: React.FC = () => {
     };
   }, [generationTask, generationProgress]);
 
-  // 生成中
+  // Generating
   if (generation.isGenerating && currentStepInfo) {
     const Icon = currentStepInfo.icon;
     
     return (
       <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 transition-all duration-300">
-        {/* 顶部: 状态标题和图标 */}
+        {/* Top: Status title and icon */}
         <div className="flex items-center gap-3 mb-3">
           <div className="relative">
             <Loader2 size={20} className="text-blue-600 dark:text-blue-400 animate-spin" />
@@ -63,7 +63,7 @@ export const GenerationProgress: React.FC = () => {
           <div className="flex-1">
             <div className="flex items-center gap-2">
               <h4 className="text-sm font-semibold text-blue-800 dark:text-blue-200">
-                AI 正在{currentStepInfo.label}...
+                AI is {currentStepInfo.label}...
               </h4>
               <span className="text-xs text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30 px-2 py-0.5 rounded">
                 {currentStepInfo.current}/{currentStepInfo.total}
@@ -75,18 +75,18 @@ export const GenerationProgress: React.FC = () => {
           </div>
         </div>
         
-        {/* 进度条 */}
+        {/* Progress bar */}
         <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-2 overflow-hidden">
           <div 
             className="h-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-full transition-all duration-500 ease-out relative"
             style={{ width: `${currentStepInfo.progress}%` }}
           >
-            {/* 进度条动画效果 */}
+            {/* Progress bar animation effect */}
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer" />
           </div>
         </div>
         
-        {/* 底部: 步骤指示器 */}
+        {/* Bottom: Step indicators */}
         <div className="flex items-center gap-1 mt-3">
           {Array.from({ length: currentStepInfo.total }).map((_, index) => {
             const stepNum = index + 1;
@@ -98,7 +98,7 @@ export const GenerationProgress: React.FC = () => {
             
             return (
               <div key={index} className="flex items-center flex-1">
-                {/* 步骤圆点 */}
+                {/* Step dot */}
                 <div 
                   className={`
                     flex items-center justify-center w-6 h-6 rounded-full text-xs font-medium transition-all duration-300
@@ -119,7 +119,7 @@ export const GenerationProgress: React.FC = () => {
                   )}
                 </div>
                 
-                {/* 连接线 */}
+                {/* Connector line */}
                 {index < currentStepInfo.total - 1 && (
                   <div className={`flex-1 h-0.5 mx-1 transition-all duration-300 ${
                     isCompleted 
@@ -135,7 +135,7 @@ export const GenerationProgress: React.FC = () => {
     );
   }
 
-  // 生成失败
+  // Generation failed
   if (generation.error) {
     return (
       <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 transition-all duration-300">
@@ -143,7 +143,7 @@ export const GenerationProgress: React.FC = () => {
           <AlertCircle size={20} className="text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
           <div className="flex-1">
             <h4 className="text-sm font-semibold text-red-800 dark:text-red-200 mb-1">
-              生成失败
+              Generation Failed
             </h4>
             <p className="text-xs text-red-700 dark:text-red-300">
               {generation.error}
@@ -152,7 +152,7 @@ export const GenerationProgress: React.FC = () => {
               onClick={() => useStore.getState().generateComponent()}
               className="mt-2 text-xs text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 underline"
             >
-              点击重试
+              Click to retry
             </button>
           </div>
         </div>
@@ -163,18 +163,18 @@ export const GenerationProgress: React.FC = () => {
   return null;
 };
 
-// 获取步骤描述
+// Get step description
 function getStepDescription(step: string): string {
   const descriptions: Record<string, string> = {
-    '分析需求': '理解组件需求和架构设计',
-    '构建框架': '创建文件结构和依赖关系',
-    '生成代码': '编写组件实现代码',
-    '组装组件': '整合所有文件和导出',
+    'Analyzing Requirements': 'Understanding component requirements and architecture design',
+    'Building Framework': 'Creating file structure and dependencies',
+    'Generating Code': 'Writing component implementation code',
+    'Assembling Components': 'Integrating all files and exports',
   };
-  return descriptions[step] || '请稍候...';
+  return descriptions[step] || 'Please wait...';
 }
 
-// 根据索引获取步骤 key
+// Get step key by index
 function getStepKeyByIndex(index: number): string {
   const keys = ['analyzing', 'scaffolding', 'filling', 'assembling'];
   return keys[index] || 'analyzing';

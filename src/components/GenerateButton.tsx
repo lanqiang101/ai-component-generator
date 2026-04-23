@@ -7,7 +7,7 @@ export const GenerateButton: React.FC = () => {
   const { generation, generateComponent, isRefiningRequirements } = useStore();
   const { t } = useTranslation();
 
-  // 判断是否正在处理（包括需求整理和代码生成）
+  // Check if processing (includes requirements refinement and code generation)
   const isProcessing = generation.isGenerating || isRefiningRequirements;
 
   return (

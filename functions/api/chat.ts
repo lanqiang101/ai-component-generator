@@ -1,15 +1,15 @@
 /**
- * API: 通用 Chat 接口
+ * API: Generic Chat Interface
  * POST /api/chat
  * 
- * 请求体:
+ * Request body:
  * {
  *   messages: [
  *     { role: 'user', content: string }
  *   ]
  * }
  * 
- * 响应:
+ * Response:
  * {
  *   choices: [
  *     { message: { content: string } }
@@ -35,21 +35,21 @@ export async function onRequest(context: any) {
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return new Response(
-        JSON.stringify({ error: '缺少必要参数: messages' }),
+        JSON.stringify({ error: 'Missing required parameter: messages' }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
-    // 提取用户消息内容
+    // Extract user message content
     const userMessage = messages.find((m: any) => m.role === 'user');
     if (!userMessage || !userMessage.content) {
       return new Response(
-        JSON.stringify({ error: '缺少用户消息内容' }),
+        JSON.stringify({ error: 'Missing user message content' }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
-    // 调用 AI 生成回复
+    // Call AI to generate response
     const content = await callAI(userMessage.content, env);
 
     return new Response(
@@ -68,10 +68,10 @@ export async function onRequest(context: any) {
       }
     );
   } catch (error: any) {
-    console.error('Chat API 失败:', error);
+    console.error('Chat API failed:', error);
     return new Response(
       JSON.stringify({
-        error: error.message || 'Chat API 调用失败',
+        error: error.message || 'Chat API call failed',
       }),
       {
         status: 500,

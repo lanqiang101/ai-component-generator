@@ -30,27 +30,27 @@ function saveToStorage(key: string, data: any): void {
   }
 }
 
-// ====== 辅助函数 (在 store 外部定义) ======
+// ====== Helper Functions (Defined outside store) ======
 
 /**
- * 根据需求分析结果判断组件复杂度
- * @returns true = 复杂组件(多文件), false = 简单组件(单文件)
+ * Determine component complexity based on requirements analysis
+ * @returns true = Complex Component(多文件), false = Simple Component(单文件)
  */
 function analyzeComponentComplexity(refinedRequirements: any): boolean {
   if (!refinedRequirements) {
-    return false; // 默认使用单文件
+    return false; // Default to single file
   }
   
   const { componentStructure, features, technicalNotes } = refinedRequirements;
   
-  // 判断标准:
-  // 1. 功能点数量 >= 5
-  // 2. 技术要点包含 "组件拆分"、"模块化"、"子组件" 等关键词
-  // 3. 组件结构描述中包含多个文件或模块
+  // Criteria:
+  // 1. Feature count >= 5
+  // 2. Technical notes contain "组件拆分"、"模块化"、"子组件" 等关键词
+  // 3. Component structure description contains multiple files or modules
   
   let complexityScore = 0;
   
-  // 评分规则 1: 功能点数量
+  // Scoring Rule 1: Feature count
   const featureCount = Array.isArray(features) ? features.length : 0;
   if (featureCount >= 5) {
     complexityScore += 2;
@@ -58,7 +58,7 @@ function analyzeComponentComplexity(refinedRequirements: any): boolean {
     complexityScore += 1;
   }
   
-  // 评分规则 2: 技术要点关键词
+  // Scoring Rule 2: Technical Notes Keywords
   const complexKeywords = ['组件拆分', '模块化', '子组件', '分离', '独立', '复用', '架构'];
   const notesText = Array.isArray(technicalNotes) ? technicalNotes.join(' ') : (technicalNotes || '');
   const hasComplexKeywords = complexKeywords.some(keyword => notesText.includes(keyword));
@@ -66,7 +66,7 @@ function analyzeComponentComplexity(refinedRequirements: any): boolean {
     complexityScore += 2;
   }
   
-  // 评分规则 3: 组件结构描述长度和关键词
+  // Scoring Rule 3: Component Structure Description Length and Keywords
   const structureText = componentStructure || '';
   if (structureText.length > 200) {
     complexityScore += 1;
@@ -75,19 +75,19 @@ function analyzeComponentComplexity(refinedRequirements: any): boolean {
     complexityScore += 1;
   }
   
-  console.log(`📊 复杂度评分: ${complexityScore}/6 (阈值: 3)`);
+  console.log(`📊 Complexity Score: ${complexityScore}/6 (阈值: 3)`);
   
-  // 总分 >= 3 判定为复杂组件
+  // Total Score >= 3 判定为Complex Component
   return complexityScore >= 3;
 }
 
 /**
- * 生成简单组件 (单文件)
+ * 生成Simple Component (单文件)
  */
 async function generateSimpleComponent(params: any, refinedRequirements: any): Promise<boolean> {
   const { setGeneration, setCurrentCode } = useStore.getState();
   
-  console.log('🔵 开始生成简单组件 (单文件模式)');
+  console.log('🔵 Start generationSimple Component (单文件模式)');
   
   let finalCode = '';
   let attemptCount = 0;
@@ -96,7 +96,7 @@ async function generateSimpleComponent(params: any, refinedRequirements: any): P
   while (attemptCount < maxAttempts) {
     attemptCount++;
     
-    // 构建增强的参数
+    // Build enhanced params
     const enhancedParams = {
       ...params,
       description: refinedRequirements?.refinedDescription || params.description,
@@ -135,7 +135,7 @@ async function generateSimpleComponent(params: any, refinedRequirements: any): P
         cleanedCode = cleanedCode.trim();
       }
       
-      // 检查代码完整性
+      // Check code completeness
       const completenessCheck = checkCodeCompleteness(cleanedCode);
       
       if (completenessCheck.complete) {
@@ -170,15 +170,15 @@ async function generateSimpleComponent(params: any, refinedRequirements: any): P
 }
 
 /**
- * 生成复杂组件 (多文件)
+ * 生成Complex Component (多文件)
  */
 async function generateComplexComponent(params: any, refinedRequirements: any): Promise<boolean> {
   const { setGeneration, startMultiFileGeneration } = useStore.getState();
   
-  console.log('🟣 开始生成复杂组件 (多文件模式)');
+  console.log('🟣 Start generationComplex Component (多文件模式)');
   
   try {
-    // 启动多文件生成任务
+    // 启动多文件Generation Task
     const taskId = await startMultiFileGeneration({
       ...params,
       description: refinedRequirements?.refinedDescription || params.description,
@@ -190,7 +190,7 @@ async function generateComplexComponent(params: any, refinedRequirements: any): 
       } : undefined,
     });
     
-    console.log(`✅ 多文件生成任务已启动: ${taskId}`);
+    console.log(`✅ 多文件Generation Task已启动: ${taskId}`);
     
     // 注意: 多文件生成是异步的,进度通过轮询更新
     // 这里返回 true 表示任务已成功启动
@@ -394,7 +394,7 @@ export const useStore = create<AppState>((set, get) => ({
   setShowRefinementDialog: (show: boolean) => set({ showRefinementDialog: show }),
   setRefinedRequirements: (requirements: RefinedRequirements | null) => set({ refinedRequirements: requirements }),
 
-  // Generate component - 修改为先弹出需求整理弹窗
+  // Generate component - 修改为先弹出Requirements Refinement弹窗
   generateComponent: async () => {
     const { params } = get();
     
@@ -408,10 +408,10 @@ export const useStore = create<AppState>((set, get) => ({
       return false;
     }
 
-    // 先显示弹窗，再开始需求整理
+    // 先显示弹窗，再开始Requirements Refinement
     set({ showRefinementDialog: true });
     
-    // 进行需求整理
+    // 进行Requirements Refinement
     const success = await get().refineRequirements();
     return success;
   },
@@ -444,7 +444,7 @@ export const useStore = create<AppState>((set, get) => ({
       set({ isRefiningRequirements: false });
       return true;
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : '需求整理失败';
+      const errorMessage = err instanceof Error ? err.message : 'Requirements Refinement失败';
       setGeneration({ isGenerating: false, error: errorMessage });
       set({ isRefiningRequirements: false });
       return false;
@@ -453,7 +453,7 @@ export const useStore = create<AppState>((set, get) => ({
 
   // ====== 内部生成策略实现 ======
 
-  // 简单组件生成策略 (单文件)
+  // 简单Component Generation策略 (单文件)
   generateSimpleComponent: async (params: any, refinedRequirements: RefinedRequirements | null) => {
     const { setGeneration, setCurrentCode } = get();
 
@@ -569,7 +569,7 @@ export const useStore = create<AppState>((set, get) => ({
       while (attemptCount < maxAttempts) {
         attemptCount++;
         
-        // 构建增强的参数，包含完整的需求分析
+        // Build enhanced params，包含完整的需求分析
         const enhancedParams = {
           ...params,
           description: refinedRequirements?.refinedDescription || params.description,
@@ -608,7 +608,7 @@ export const useStore = create<AppState>((set, get) => ({
           cleanedCode = cleanedCode.trim();
         }
         
-        // 检查代码完整性
+        // Check code completeness
         const completenessCheck = checkCodeCompleteness(cleanedCode);
         
         if (completenessCheck.complete) {
@@ -641,13 +641,13 @@ export const useStore = create<AppState>((set, get) => ({
       setGeneration({ isGenerating: false });
       return true;
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : '生成失败';
+      const errorMessage = err instanceof Error ? err.message : 'Generation failed';
       setGeneration({ isGenerating: false, error: errorMessage });
       return false;
     }
   },
 
-  // 复杂组件生成策略 (多文件)
+  // 复杂Component Generation策略 (多文件)
   generateComplexComponent: async (params: any, refinedRequirements: RefinedRequirements | null) => {
     const { startMultiFileGeneration, setGeneration } = get();
     
@@ -664,9 +664,9 @@ export const useStore = create<AppState>((set, get) => ({
         } : undefined,
       };
 
-      console.log('🚀 启动多文件生成任务...');
+      console.log('🚀 启动多文件Generation Task...');
       
-      // 启动多文件生成任务 (内部会处理轮询和状态更新)
+      // 启动多文件Generation Task (内部会处理轮询和状态更新)
       await startMultiFileGeneration(enhancedParams);
       
       // 注意：多文件生成是异步轮询的，这里返回 true 表示任务已成功启动
@@ -688,20 +688,20 @@ export const useStore = create<AppState>((set, get) => ({
       set({ showRefinementDialog: false });
       setGeneration({ isGenerating: true, error: null });
       
-      // 根据需求分析结果判断组件复杂度
+      // Determine component complexity based on requirements analysis
       const shouldUseMultiFile = analyzeComponentComplexity(refinedRequirements);
       
-      console.log(`📊 组件复杂度分析: ${shouldUseMultiFile ? '复杂组件 (多文件)' : '简单组件 (单文件)'}`);
+      console.log(`📊 组件复杂度分析: ${shouldUseMultiFile ? 'Complex Component (多文件)' : 'Simple Component (单文件)'}`);
       
       if (shouldUseMultiFile) {
-        // 复杂组件: 使用多文件生成流程
+        // Complex Component: 使用多文件生成流程
         return await generateComplexComponent(params, refinedRequirements);
       } else {
-        // 简单组件: 使用单文件生成流程
+        // Simple Component: 使用单文件生成流程
         return await generateSimpleComponent(params, refinedRequirements);
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : '生成失败';
+      const errorMessage = err instanceof Error ? err.message : 'Generation failed';
       setGeneration({ isGenerating: false, error: errorMessage });
       return false;
     }
@@ -764,14 +764,14 @@ export const useStore = create<AppState>((set, get) => ({
   
   // ====== 多文件组件化生成相关方法 ======
   
-  // 初始化多文件生成状态
+  // 初始化多文件Generation State
   generationTaskId: null,
   generationTask: null,
   generatedFiles: [],
   activeFilePath: '',
   generationProgress: 0,
   
-  // 启动多文件生成任务
+  // 启动多文件Generation Task
   startMultiFileGeneration: async (params) => {
     try {
       // 获取当前语言
@@ -795,13 +795,13 @@ export const useStore = create<AppState>((set, get) => ({
         generationProgress: 0,
       });
       
-      // 开始轮询进度
+      // Start polling进度
       get().pollGenerationProgress();
       
       return result.taskId;
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : '启动生成任务失败';
-      console.error('启动多文件生成失败:', errorMessage);
+      const errorMessage = err instanceof Error ? err.message : '启动Generation Task失败';
+      console.error('启动多文件Generation failed:', errorMessage);
       throw err;
     }
   },
@@ -828,13 +828,13 @@ export const useStore = create<AppState>((set, get) => ({
           generationProgress: task.progress,
         });
         
-        // 如果任务完成,获取文件列表
+        // 如果Task completed,获取文件列表
         if (task.status === 'completed') {
           clearInterval(pollInterval);
           await get().loadGeneratedFiles(generationTaskId);
         } else if (task.status === 'failed') {
           clearInterval(pollInterval);
-          console.error('生成任务失败:', task.error);
+          console.error('Generation Task失败:', task.error);
         }
       } catch (err) {
         console.error('轮询进度失败:', err);
@@ -842,11 +842,11 @@ export const useStore = create<AppState>((set, get) => ({
       }
     }, 1000); // 每秒轮询一次
     
-    // 5分钟后自动停止轮询
+    // 5分钟后自动Stop polling
     setTimeout(() => clearInterval(pollInterval), 300000);
   },
   
-  // 加载生成的文件列表
+  // 加载Generated Files列表
   loadGeneratedFiles: async (taskId: string) => {
     try {
       const response = await fetch(`/api/generate/${taskId}/files`);

@@ -1,18 +1,18 @@
 /**
- * AI API 调用工具函数
- * 用于 Cloudflare Pages Functions
+ * AI API Call Utility Function
+ * Used by Cloudflare Pages Functions
  * 
- * 架构说明：
- * - Pages Functions 通过 Worker 代理访问火山方舟 API
- * - Worker URL 可通过环境变量 WORKER_URL 配置
- * - 默认使用云端 Worker: https://ai-component-proxy.xuyongqiang916.workers.dev
+ * Architecture:
+ * - Pages Functions access Volcengine API through Worker proxy
+ * - Worker URL can be configured via WORKER_URL environment variable
+ * - Default uses cloud Worker: https://ai-component-proxy.xuyongqiang916.workers.dev
  */
 
 export async function callAI(prompt: string, env?: any): Promise<string> {
-  // 从环境变量获取 Worker URL，如果没有则使用默认云端地址
+  // Get Worker URL from environment variable, use default cloud address if not set
   const WORKER_URL = env?.WORKER_URL || 'https://ai-component-proxy.xuyongqiang916.workers.dev';
   
-  console.log('调用 Cloudflare Worker 代理:', WORKER_URL);
+  console.log('Calling Cloudflare Worker proxy:', WORKER_URL);
 
   try {
     const response = await fetch(WORKER_URL, {
@@ -31,19 +31,19 @@ export async function callAI(prompt: string, env?: any): Promise<string> {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Worker 请求失败:', response.status, errorText);
+      console.error('Worker request failed:', response.status, errorText);
       throw new Error(`Worker request failed with status ${response.status}: ${errorText}`);
     }
 
     const data = await response.json();
-    console.log('Worker 响应成功');
+    console.log('Worker response successful');
     
-    // 提取 AI 回复内容（Worker 返回的是火山方舟的标准格式）
+    // Extract AI response content (Worker returns Volcengine standard format)
     if (data.choices && data.choices[0] && data.choices[0].message) {
       return data.choices[0].message.content;
     }
     
-    console.error('Worker 响应格式异常:', JSON.stringify(data));
+    console.error('Worker response format invalid:', JSON.stringify(data));
     throw new Error('Invalid worker response format');
   } catch (error: any) {
     console.error('AI API call failed:', error);

@@ -1,5 +1,5 @@
-// Pages Function: 透明代理所有 /api/* 请求到线上 Pages 服务
-// 注意: 代码清洗已在 Worker 层完成,此处仅做请求转发
+// Pages Function: Transparent proxy for all /api/* requests to production Pages service
+// Note: Code cleaning is done at the Worker layer, this only handles request forwarding
 export async function onRequest(context: any) {
   const { request } = context;
   
@@ -7,7 +7,7 @@ export async function onRequest(context: any) {
     const pathname = new URL(request.url).pathname;
     const targetUrl = `https://ai-component-generator.pages.dev${pathname}`;
     
-    // 直接转发请求,不做任何处理
+    // Directly forward request without any processing
     const response = await fetch(targetUrl, {
       method: request.method,
       headers: request.headers,
@@ -20,9 +20,9 @@ export async function onRequest(context: any) {
       headers: response.headers,
     });
   } catch (error) {
-    console.error('API 代理错误:', error);
+    console.error('API proxy error:', error);
     return new Response(
-      JSON.stringify({ success: false, error: 'API 服务不可用' }),
+      JSON.stringify({ success: false, error: 'API service unavailable' }),
       {
         status: 502,
         headers: { 'Content-Type': 'application/json' },

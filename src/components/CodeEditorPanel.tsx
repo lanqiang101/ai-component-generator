@@ -18,14 +18,14 @@ function cn(...inputs: any[]) {
   return twMerge(clsx(inputs));
 }
 
-// 定义文件接口
+// Define file interface
 interface CodeFile {
   name: string;
   language: string;
   content: string;
 }
 
-// 根据当前代码判断语言
+// Detect language based on current code
 function detectLanguage(code: string): string {
   if (code.includes('.vue') || code.includes('<template>')) return 'html';
   if (code.includes('function') && code.includes('import') && code.includes('export')) {
@@ -38,7 +38,7 @@ function detectLanguage(code: string): string {
   return 'jsx';
 }
 
-// 根据文件路径获取文件扩展名
+// Get file extension from file path
 function getFileExtension(filePath: string): string {
   const parts = filePath.split('.');
   if (parts.length > 1) {
@@ -50,11 +50,11 @@ function getFileExtension(filePath: string): string {
   return 'typescript';
 }
 
-// 智能拆分代码为多个文件
+// Smart split code into multiple files
 function splitCodeToFiles(code: string): CodeFile[] {
   const files: CodeFile[] = [];
   
-  // 清理代码：移除代码标记
+  // Clean code: remove code markers
   let cleanCode = code.trim();
   if (cleanCode.startsWith('```')) {
     cleanCode = cleanCode.replace(/^```(?:tsx|typescript|javascript|jsx|vue|html|css|scss|less)?\s*\n?/i, '');
@@ -62,7 +62,7 @@ function splitCodeToFiles(code: string): CodeFile[] {
     cleanCode = cleanCode.trim();
   }
   
-  // 使用正则表达式匹配所有 FILE 标记
+  // Use regex to match all FILE markers
   const fileRegex = /\/\/\s*======\s*FILE:\s*([^\n]+)\s*======([\s\S]*?)(?=\/\/\s*======\s*FILE:|$)/g;
   let match;
   
@@ -70,7 +70,7 @@ function splitCodeToFiles(code: string): CodeFile[] {
     const fileName = match[1].trim();
     const fileContent = match[2].trim();
     
-    // 检测文件语言
+    // Detect file language
     let language = 'typescript';
     if (fileName.endsWith('.css')) language = 'css';
     else if (fileName.endsWith('.scss')) language = 'scss';
@@ -87,9 +87,9 @@ function splitCodeToFiles(code: string): CodeFile[] {
     });
   }
   
-  // 如果没有找到 FILE 标记，则尝试其他拆分方式
+  // If no FILE markers found, try other splitting methods
   if (files.length === 0) {
-    // 检查是否包含样式代码（CSS/SCSS/Less）
+    // Check if it contains style code (CSS/SCSS/Less)
     const cssMatch = cleanCode.match(/(?:\.css|\.scss|\.less|styled-components|css\s*`[\s\S]*?`)/);
     if (cssMatch) {
       const cssContent = cleanCode.match(/css\s*`([\s\S]*?)`|<style>([\s\S]*?)<\/style>/);
@@ -104,10 +104,10 @@ function splitCodeToFiles(code: string): CodeFile[] {
       }
     }
     
-    // 检查是否包含工具函数
-    const utilsMatch = cleanCode.match(/(\/\/|\/\*)\s*工具函数[\s\S]*?(const|function)\s+\w+/);
+    // Check if it contains utility functions
+    const utilsMatch = cleanCode.match(/(\/\/|\/\*)\s*Utility Functions[\s\S]*?(const|function)\s+\w+/);
     if (utilsMatch) {
-      const utilsSection = cleanCode.match(/(?:\/\/|\/\*)\s*工具函数[\s\S]*?(?=\n\n(?:\/\/|\/\*)|$)/g);
+      const utilsSection = cleanCode.match(/(?:\/\/|\/\*)\s*Utility Functions[\s\S]*?(?=\n\n(?:\/\/|\/\*)|$)/g);
       if (utilsSection) {
         files.push({
           name: 'utils.ts',
@@ -117,7 +117,7 @@ function splitCodeToFiles(code: string): CodeFile[] {
       }
     }
     
-    // 主组件文件
+    // Main component file
     files.push({
       name: detectLanguage(cleanCode) === 'typescript' ? 'component.tsx' : detectLanguage(cleanCode) === 'jsx' ? 'component.jsx' : 'component.js',
       language: detectLanguage(cleanCode),
@@ -128,7 +128,7 @@ function splitCodeToFiles(code: string): CodeFile[] {
   return files;
 }
 
-// 生成行号
+// Generate line numbers
 const renderLineNumber = (code: string) => {
   const lines = code.split('\n').length;
   return (
@@ -148,7 +148,7 @@ export const CodeEditorPanel: React.FC = () => {
   const { 
     currentCode, 
     setCurrentCode,
-    // 多文件生成相关
+    // Multi-file generation related
     generatedFiles,
     activeFilePath,
     setActiveFile
@@ -157,9 +157,9 @@ export const CodeEditorPanel: React.FC = () => {
   const [copied, setCopied] = useState(false);
   const [files, setFiles] = useState<CodeFile[]>([]);
 
-  // 当代码更新时，重新拆分文件
+  // When code updates, re-split files
   React.useEffect(() => {
-    // 优先使用多文件生成的代码
+    // Prioritize multi-file generated code
     if (generatedFiles.length > 0) {
       const multiFiles = generatedFiles.map(file => ({
         name: file.name,
@@ -173,7 +173,7 @@ export const CodeEditorPanel: React.FC = () => {
     }
   }, [currentCode, generatedFiles]);
 
-  // 根据 activeFilePath 查找当前文件
+  // Find current file based on activeFilePath
   const activeFile = useMemo(() => {
     if (files.length === 0) return null;
     const currentFileName = activeFilePath.split('/').pop();
@@ -193,8 +193,8 @@ export const CodeEditorPanel: React.FC = () => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      console.error('复制失败:', err);
-      alert('复制失败，请手动复制');
+      console.error('Copy failed:', err);
+      alert('Copy failed，请手动复制');
     }
   };
 
@@ -214,8 +214,8 @@ export const CodeEditorPanel: React.FC = () => {
 
   const displayCode = activeFile ? activeFile.content : currentCode;
 
-  // 修复 Bug: 同时检查 currentCode 和 generatedFiles
-  // 多文件生成模式下,代码存储在 generatedFiles 中,currentCode 可能为空
+  // Fix Bug: Check both currentCode and generatedFiles
+  // In multi-file generation mode, code is stored in generatedFiles, currentCode may be empty
   if (!currentCode && generatedFiles.length === 0) {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center bg-white rounded-lg border border-gray-200">
@@ -227,9 +227,9 @@ export const CodeEditorPanel: React.FC = () => {
 
   return (
     <div className="w-full h-full flex flex-col bg-white rounded-lg overflow-hidden border border-gray-200">
-      {/* 内容区域：文件树 + 代码编辑器 */}
+      {/* Content area: File tree + Code editor */}
       <div className="flex flex-1 overflow-hidden">
-        {/* 文件树 - 作为唯一切换入口 */}
+        {/* File tree - as the only switch entry */}
         {files.length > 0 && (
           <FileTreeViewer
             files={generatedFiles.length > 0 ? generatedFiles : files.map(f => ({ name: f.name, path: f.name, code: f.content }))}
@@ -240,11 +240,11 @@ export const CodeEditorPanel: React.FC = () => {
           />
         )}
 
-        {/* 代码编辑器容器 */}
+        {/* Code editor container */}
         <div className="flex-1 flex flex-col overflow-hidden">
-      {/* 工具栏 */}
+      {/* Toolbar */}
       <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-200">
-        {/* 左侧：文件名和行数 */}
+        {/* Left: File name and line count */}
         <div className="flex items-center gap-2">
           <File size={16} className="text-gray-500" />
           <span className="text-sm text-gray-700 font-mono">
@@ -255,7 +255,7 @@ export const CodeEditorPanel: React.FC = () => {
           </span>
         </div>
 
-        {/* 右侧：操作按钮 */}
+        {/* Right: Action buttons */}
         <div className="flex items-center gap-2">
           <button
             onClick={handleCopy}
@@ -289,12 +289,12 @@ export const CodeEditorPanel: React.FC = () => {
         </div>
       </div>
 
-      {/* 代码编辑器区域 */}
+      {/* Code editor area */}
       <div className="flex-1 overflow-auto bg-gray-50 relative">
-        {/* 行号 */}
+        {/* Line numbers */}
         {renderLineNumber(displayCode)}
         
-        {/* 编辑器内容 */}
+        {/* Editor content */}
         <div className="pl-12">
           <Editor
             value={displayCode}
@@ -325,9 +325,9 @@ export const CodeEditorPanel: React.FC = () => {
       </div>
 
       <style>{`
-        /* 语法高亮 - 优化配色，确保在浅色背景下清晰可见 */
+        /* Syntax highlighting - optimize coloring, ensure visibility on light background */
         
-        /* 注释 - 使用绿色 */
+        /* Comments - use green */
         .token.comment,
         .token.prolog,
         .token.doctype,
@@ -340,14 +340,14 @@ export const CodeEditorPanel: React.FC = () => {
           opacity: .7;
         }
 
-        /* 字符串和属性值 - 使用绿色 */
+        /* Strings and attribute values - use green */
         .token.string,
         .token.attr-value {
           color: #032F62 !important;
           font-weight: 500;
         }
 
-        /* 标点符号 - 使用深灰色 */
+        /* Punctuation - use dark gray */
         .token.punctuation {
           color: #24292E !important;
         }
@@ -357,7 +357,7 @@ export const CodeEditorPanel: React.FC = () => {
           background: none;
         }
 
-        /* 关键字 - 使用紫色 */
+        /* Keywords - use purple */
         .token.keyword {
           color: #D73A49 !important;
           font-weight: 500;
@@ -369,33 +369,33 @@ export const CodeEditorPanel: React.FC = () => {
           font-weight: 500;
         }
 
-        /* HTML/JSX 标签名 - 使用深红色 */
+        /* HTML/JSX tag names - use dark red */
         .token.tag {
           color: #22863A !important;
           font-weight: 500;
         }
 
-        /* 属性名（如 className, onClick 等）- 使用深红色 */
+        /* Attribute names (e.g., className, onClick) - use dark red */
         .token.attr-name {
           color: #6F42C1 !important;
           font-weight: 500;
         }
 
-        /* 函数名 - 使用蓝色 */
+        /* Function names - use blue */
         .token.function,
         .token.function-variable {
           color: #6F42C1 !important;
           font-weight: 500;
         }
 
-        /* 类名和组件名 - 使用深绿色 */
+        /* Class names and component names - use dark green */
         .token.class-name,
         .token.maybe-class-name {
           color: #005CC5 !important;
           font-weight: 500;
         }
 
-        /* 属性和参数 - 使用深红色 */
+        /* Properties and parameters - use dark red */
         .token.property,
         .token.parameter {
           color: #6F42C1 !important;
@@ -406,13 +406,13 @@ export const CodeEditorPanel: React.FC = () => {
           color: #005CC5 !important;
         }
 
-        /* 常量 - 使用蓝色 */
+        /* Constants - use blue */
         .token.constant {
           color: #005CC5 !important;
           font-weight: 500;
         }
 
-        /* 变量 - 使用深灰色 */
+        /* Variables - use dark gray */
         .token.variable {
           color: #24292E !important;
         }
@@ -421,25 +421,25 @@ export const CodeEditorPanel: React.FC = () => {
           color: #D73A49 !important;
         }
 
-        /* 模板字符串中的插值 - 使用深灰色 */
+        /* Template string interpolations - use dark gray */
         .token.template-string,
         .token.interpolation {
           color: #24292E !important;
         }
 
-        /* JSX 表达式 - 使用深灰色 */
+        /* JSX expressions - use dark gray */
         .token.jsx-expression {
           color: #24292E !important;
         }
 
-        /* 覆盖所有可能的暗色 */
+        /* Override all possible dark colors */
         .token.plain-text,
         .token.text,
         .token.content {
           color: #24292E !important;
         }
 
-        /* 编辑器样式优化 */
+        /* Editor style optimizations */
         #code-editor {
           outline: none;
           caret-color: #24292E;
@@ -457,7 +457,7 @@ export const CodeEditorPanel: React.FC = () => {
           color: #24292E !important;
         }
 
-        /* 滚动条样式 - 简约风格 */
+        /* Scrollbar style - minimalist */
         .overflow-auto::-webkit-scrollbar {
           width: 8px;
           height: 8px;
